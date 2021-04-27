@@ -1,4 +1,4 @@
-test2.txt//function definition for factorial
+//function definition for factorial
 string factorial(){
     return "factorial!";
 }
