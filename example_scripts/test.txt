@@ -1,0 +1,51 @@
+//Function definition for Power
+float Pow(x:float, n:int){
+    let y:float = 1.0;      // Declare y and set it to 1.0
+    if(n > 0){
+        for(; n > 0; n = n-1){
+            y = y*x;        // Assignment y = y * x;
+        }
+    }else{
+        for(; n < 0; n = n+1){
+            y = y/x;        // Assignment y = y/x;
+        }
+    }
+
+    return y;               //return y and the result
+}
+
+let x:float = Pow(2.1 ,10);
+print x; //prints to console 1667.988
+
+float Square(x:float){
+    return x*x;
+}
+
+bool XGreaterThanY(x:float, y:float){
+    let ans:bool = true;
+    if(y > x){ans = false;}
+
+    return ans;
+}
+
+bool XGreaterThanYv2(x:float, y:float){
+    return x > y;
+}
+
+float AverageOfThree(x:float, y:float, z:float){
+    let total:float = x + y + z;
+    return total/3.0;
+}
+
+string JoinStr(s1:string, s2:string){
+    let s3:string = s1+s2;
+    return s3;
+}
+
+x = 2.4;
+let y:float = Square(2.5);
+print y;                               //6.25
+print XGreaterThanY(x, 2.3);           //true
+print XGreaterThanYv2(Square(1.5), y); //false
+print AverageOfThree(x, y, 1.2);       //3.28
+print JoinStr("Hello", " World!");     // Hello World!

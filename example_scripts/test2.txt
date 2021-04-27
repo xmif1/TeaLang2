@@ -1,0 +1,23 @@
+//function definition for factorial
+string factorial(){
+    return "factorial!";
+}
+
+int factorial(n:int){
+    if((n == 0) or (n == 1)){
+        return 1;
+    }
+    else{
+        int de_succ(n:int){
+            let _acc:int = 0;
+            for(; _acc < n-1; _acc = _acc + 1){}
+
+            return _acc;
+        }
+
+        return n*factorial(de_succ(n));
+    }
+}
+
+print factorial();
+print factorial(10);
