@@ -20,7 +20,8 @@ grammarDFA::Symbol grammarDFA::state_tok(State state, string* lexeme){
         else if(*lexeme == "true" || *lexeme == "false"){
             return T_BOOL;
         }
-        else if(*lexeme == "int" || *lexeme == "float" || *lexeme == "bool" || *lexeme == "string"){
+        else if(*lexeme == "int" || *lexeme == "float" || *lexeme == "bool" || *lexeme == "string" || *lexeme == "char"
+                || *lexeme == "auto"){
             return T_TYPE;
         }
         else if(*lexeme == "let"){

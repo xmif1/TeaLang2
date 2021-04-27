@@ -14,7 +14,7 @@
 
 using namespace std;
 
-typedef variant<bool, int, float, string> literal_t;
+typedef variant<bool, int, float, char, string> literal_t;
 
 enum IdentifierType{
     VAR, FUNC

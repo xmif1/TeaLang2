@@ -48,6 +48,7 @@ private:
     void ruleLITERAL_T_INT(astInnerNode*,  lexer::Token*);
     void ruleLITERAL_T_FLOAT(astInnerNode*,  lexer::Token*);
     void ruleLITERAL_T_STRING(astInnerNode*,  lexer::Token*);
+    void ruleLITERAL_T_CHAR(astInnerNode*,  lexer::Token*);
     void ruleUNARY_T_MINUS(astInnerNode*,  lexer::Token*);
     void ruleUNARY_T_NOT(astInnerNode*,  lexer::Token*);
     void ruleFUNC_CALL(astInnerNode*,  lexer::Token*);

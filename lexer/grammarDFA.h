@@ -26,13 +26,13 @@ public:
         IF, ELSE, FUNC_DECL, FUNC_DECL_FPARAMS, FOR, FOR_VAR_DECL, FOR_EXPRESSION, FOR_ASSIGNMENT, FACTOR, TERM, TERM_ext,
         S_EXPR, S_EXPR_ext, EXPRESSION_ext, TYPE, IDENTIFIER,// Non--Terminal Symbols, n_NTS = 39
 
-        T_INT, T_FLOAT, T_STRING, T_MUL, T_DIV, T_PLUS, T_MINUS, T_EQUALS, T_RELOP, // Terminal Symbols, n_token_types = 33
+        T_INT, T_FLOAT, T_STRING, T_CHAR, T_AUTO, T_MUL, T_DIV, T_PLUS, T_MINUS, T_EQUALS, T_RELOP, // Terminal Symbols, n_token_types = 35
         T_LBRACKET, T_RBRACKET, T_LBRACE, T_RBRACE, T_PERIOD, T_COLON, T_SEMICOLON, T_COMMENT, T_INVALID, T_COMMA,
         T_EOF, T_IDENTIFIER, // tokens for reserved words follow:
         T_AND, T_OR, T_NOT, T_BOOL, T_TYPE, T_LET, T_PRINT, T_RETURN, T_IF, T_ELSE, T_FOR, T_WHILE
     };
 
-    const static int n_NTS = 39, n_token_types = 33;
+    const static int n_NTS = 39, n_token_types = 35;
 
     Symbol state_tok(State, string*);
     State transition(State, char);

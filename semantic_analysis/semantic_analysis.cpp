@@ -19,8 +19,14 @@ string semantic_analysis::type_symbol2string(grammarDFA::Symbol type){
     else if(type == grammarDFA::T_FLOAT){
         return "float";
     }
-    else{
+    else if(type == grammarDFA::T_STRING){
         return "string";
+    }
+    else if(type == grammarDFA::T_CHAR){
+        return "char";
+    }
+    else{
+        return "auto";
     }
 }
 
@@ -121,12 +127,12 @@ void semantic_analysis::visit(astADDOP* node){
     if(!type_deduction_reqd){
         if(node->op == "+" && op1_type == grammarDFA::T_BOOL){
             std::cerr << "ln " << node->line << ": binary operation " << node->op
-                      << " requires matching int, float or string operands (given " << type_symbol2string(op1_type)
+                      << " requires matching int, float, char or string operands (given " << type_symbol2string(op1_type)
                       << " instead)" << std::endl;
         }
-        else if(node->op == "-" && op1_type != grammarDFA::T_INT && op1_type != grammarDFA::T_FLOAT){
+        else if(node->op == "-" && (op1_type == grammarDFA::T_STRING || op1_type == grammarDFA::T_BOOL)){
             std::cerr << "ln " << node->line << ": binary operation " << node->op
-                      << " requires matching int or float operands (given " << type_symbol2string(op1_type)
+                      << " requires matching int, float or char operands (given " << type_symbol2string(op1_type)
                       << " instead)" << std::endl;
         }
         else if(node->op == "or" && op1_type != grammarDFA::T_BOOL){
@@ -183,6 +189,9 @@ void semantic_analysis::visit(astFUNC_CALL* node){
 
                 if(func != nullptr){
                     curr_type = func->type;
+                    if(func->type == grammarDFA::T_AUTO){
+                        type_deduction_reqd = true;
+                    }
                 }
                 else{
                     std::cerr << "ln " << node->line << ": function " << func_ident << "("
@@ -218,13 +227,13 @@ void semantic_analysis::visit(astUNARY* node){
         node->operand->accept(this);
 
         if(!type_deduction_reqd){
-            if(node->op == "-" && curr_type != grammarDFA::T_INT && curr_type != grammarDFA::T_FLOAT){
+            if(node->op == "-" && curr_type == grammarDFA::T_BOOL && curr_type != grammarDFA::T_STRING){
                 std::cerr << "ln " << node->line << ": binary operation " << node->op <<
-                " requires matching int or float operands (given " << type_symbol2string(curr_type) << " instead)" << std::endl;
+                " requires matching int, float or char types (given " << type_symbol2string(curr_type) << " instead)" << std::endl;
             }
             else if(node->op == "not" && curr_type != grammarDFA::T_BOOL){
                 std::cerr << "ln " << node->line << ": binary operation " << node->op <<
-                " requires matching boolean operands (given " << type_symbol2string(curr_type) << " instead)" << std::endl;
+                " requires a boolean operand (given " << type_symbol2string(curr_type) << " instead)" << std::endl;
             }
         }
     }
@@ -259,12 +268,6 @@ void semantic_analysis::visit(astASSIGNMENT* node){
 void semantic_analysis::visit(astVAR_DECL* node){
     string var_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
     grammarDFA::Symbol var_type = ((astTYPE*) node->type)->type;
-    auto* var = new varSymbol(&var_ident, var_type);
-
-    if(!symbolTable->insert(var)){
-        delete var;
-        std::cerr << "ln " << node->line << ": identifier " << var_ident << " has already been declared" << std::endl;
-    }
 
     if(node->expression != nullptr){
         node->expression->accept(this);
@@ -272,10 +275,20 @@ void semantic_analysis::visit(astVAR_DECL* node){
             std::cerr << "ln " << node->line << ": variable " << var_ident << " of type " << ((astTYPE*) node->type)->lexeme
                       << " cannot be initialised to an indeterminate type" << std::endl;
         }
+        else if(var_type == grammarDFA::T_AUTO){
+            var_type = curr_type;
+        }
         else if(curr_type != var_type){
             std::cerr << "ln " << node->line << ": variable " << var_ident << " of type " << ((astTYPE*) node->type)->lexeme
                       << " cannot be initialised to value of type " << type_symbol2string(curr_type) << std::endl;
         }
+    }
+
+    auto* var = new varSymbol(&var_ident, var_type);
+
+    if(!symbolTable->insert(var)){
+        delete var;
+        std::cerr << "ln " << node->line << ": identifier " << var_ident << " has already been declared" << std::endl;
     }
 }
 
@@ -293,13 +306,22 @@ void semantic_analysis::visit(astRETURN* node){
         node->expression->accept(this);
         functionStack->top().second = true;
 
-        if(type_deduction_reqd){
-            std::cerr << "ln " << node->line << ": function " << (functionStack->top().first)->identifier << "(" <<
-            typeVect_symbol2string((functionStack->top().first)->fparams) << ")"
-            << " returns a value of an indeterminate type (expected " << type_symbol2string((functionStack->top().first)->type)
-            << " return type)" << std::endl;
+        if(type_deduction_reqd && curr_type != grammarDFA::T_AUTO){
+            if((functionStack->top().first)->type == grammarDFA::T_AUTO){
+                std::cerr << "ln " << node->line << ": function " << (functionStack->top().first)->identifier << "(" <<
+                typeVect_symbol2string((functionStack->top().first)->fparams) << ")"
+                << " returns a value of an indeterminate type" << std::endl;
+            }else{
+                std::cerr << "ln " << node->line << ": function " << (functionStack->top().first)->identifier << "(" <<
+                typeVect_symbol2string((functionStack->top().first)->fparams) << ")"
+                << " returns a value of an indeterminate type (expected " << type_symbol2string((functionStack->top().first)->type)
+                << " return type)" << std::endl;
+            }
         }
-        else if(curr_type != (functionStack->top().first)->type){
+        else if(curr_type != grammarDFA::T_AUTO && (functionStack->top().first)->type == grammarDFA::T_AUTO){
+            (functionStack->top().first)->type = curr_type;
+        }
+        else if(!type_deduction_reqd && curr_type != (functionStack->top().first)->type){
             std::cerr << "ln " << node->line << ": function " << (functionStack->top().first)->identifier << "(" <<
             typeVect_symbol2string((functionStack->top().first)->fparams) << ") returns a value of type " <<
             type_symbol2string(curr_type) << " (expected " << type_symbol2string((functionStack->top().first)->type)
@@ -404,8 +426,14 @@ void semantic_analysis::visit(astFPARAM* node){
     grammarDFA::Symbol fparam_type = ((astTYPE*) node->type)->type;
     auto* fparam = new varSymbol(&fparam_ident, fparam_type);
 
+    if(fparam_type == grammarDFA::T_AUTO){
+        std::cerr << "ln " << node->line << ": identifier " << fparam_ident
+        << " in function signature cannot have auto type specification" << std::endl;
+    }
+
     if(!symbolTable->insert(fparam)){
         delete fparam;
+
         std::cerr << "ln " << node->line << ": identifier " << fparam_ident
         << " in function signature has already been declared" << std::endl;
     }
@@ -448,6 +476,14 @@ void semantic_analysis::visit(astFUNC_DECL* node){
     }
 
     functionStack->pop();
+
+    if(func->type == grammarDFA::T_AUTO){
+        std::cerr << "ln " << node->line << ": function " << func_ident << "(" << typeVect_symbol2string(fparams)
+        << ") has type auto which cannot be resolved from the return statement (possible recursive call with no base case?)"
+        << std::endl;
+
+        exit(1);
+    }
 
     if(!inserted){
         delete func;

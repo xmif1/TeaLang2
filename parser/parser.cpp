@@ -199,6 +199,11 @@ void parser::ruleLITERAL_T_STRING(astInnerNode* parent, lexer::Token* token_ptr)
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_STRING});
 }
 
+void parser::ruleLITERAL_T_CHAR(astInnerNode* parent, lexer::Token* token_ptr){
+    parent->add_child(new astLITERAL(parent, token_ptr->lexeme, grammarDFA::T_CHAR, token_ptr->line));
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_CHAR});
+}
+
 void parser::ruleUNARY_T_MINUS(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_unary = new astUNARY(parent, "-", token_ptr->line); parent->add_child(ast_unary);
     state_stack.push({.parent = ast_unary, .symbol = grammarDFA::EXPRESSION});
@@ -399,8 +404,14 @@ void parser::ruleTYPE(astInnerNode* parent, lexer::Token* token_ptr){
     else if(token_ptr->lexeme == "float"){
         type = grammarDFA::T_FLOAT;
     }
-    else{
+    else if(token_ptr->lexeme == "string"){
         type = grammarDFA::T_STRING;
+    }
+    else if(token_ptr->lexeme == "char"){
+        type = grammarDFA::T_CHAR;
+    }
+    else{
+        type = grammarDFA::T_AUTO;
     }
 
     parent->add_child(new astTYPE(parent, token_ptr->lexeme, type, token_ptr->line));
@@ -466,6 +477,7 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
                 case grammarDFA::T_BOOL:        pr = &parser::ruleLITERAL_T_BOOL;               break;
                 case grammarDFA::T_STRING:      pr = &parser::ruleLITERAL_T_STRING;             break;
                 case grammarDFA::T_FLOAT:       pr = &parser::ruleLITERAL_T_FLOAT;              break;
+                case grammarDFA::T_CHAR:        pr = &parser::ruleLITERAL_T_CHAR;               break;
                 default:                        pr = nullptr;
             }
         }                                                                                       break;
@@ -541,7 +553,8 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
                 case grammarDFA::T_BOOL:
                 case grammarDFA::T_INT:
                 case grammarDFA::T_FLOAT:
-                case grammarDFA::T_STRING:      pr = &parser::ruleFACTOR_LITERAL;               break;
+                case grammarDFA::T_STRING:
+                case grammarDFA::T_CHAR:        pr = &parser::ruleFACTOR_LITERAL;               break;
                 case grammarDFA::T_LBRACKET:    pr = &parser::ruleFACTOR_SUBEXPR;               break;
                 case grammarDFA::T_MINUS:
                 case grammarDFA::T_NOT:         pr = &parser::ruleFACTOR_UNARY;                 break;
