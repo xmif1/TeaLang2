@@ -5,8 +5,6 @@
  * error should be reported.
  */
 
- // ---- DO NOT RUN INTERPRETER: EXAMPLE FUNCTIONS INCLUDE INFINITE RECURSION, INTENDED ONLY TO TEST SEMANTIC ANALYSIS
-
  // The following two examples, foo1 and foo2, illustrate order independence; they should report no semantic errors
  auto foo1(x:int){
     if(x < 1){
@@ -24,19 +22,18 @@
     }
  }
 
- // The following example, with no return type having a determinate type, reports an error.
- auto foo3(x:int){
-    return foo3(x - 1);
- }
-
- /* However this one does not: since TeaLang(1/2) requires matching operand types, we can deduce the return of foo4
-  * (even if it can never return).
-  auto foo4(x:int){
-     return 1 * foo4(x - 1);
+ /* Since TeaLang(1/2) requires matching operand types, we can deduce the return of foo3.
+  * (even if it can never return). */
+  auto foo3(x:int){
+     return 1 * foo3(x - 1);
   }
 
-  /* This example however does not resolve the type of foo3 but erroneously does for foo5; the semantic error related to
-     foo3 should first be corrected. */
+ // However this one does: with no return statement having a determinate type, a semantic error is reported.
+ auto foo4(x:int){
+    return foo4(x - 1);
+ }
+
+  // This example however does not resolve the type of foo4: the semantic analysis halts at this point
  auto foo5(x:int){
-    return 1 * foo3(x - 1);
+    return 1 * foo4(x - 1);
  }

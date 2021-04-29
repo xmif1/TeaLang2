@@ -212,7 +212,7 @@ void parser::ruleUNARY_T_MINUS(astInnerNode* parent, lexer::Token* token_ptr){
 
 void parser::ruleUNARY_T_NOT(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_unary = new astUNARY(parent, "not", token_ptr->line); parent->add_child(ast_unary);
-    state_stack.push({.parent = nullptr, .symbol = grammarDFA::EXPRESSION});
+    state_stack.push({.parent = ast_unary, .symbol = grammarDFA::EXPRESSION});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_NOT});
 }
 

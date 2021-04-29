@@ -227,7 +227,7 @@ void semantic_analysis::visit(astUNARY* node){
         node->operand->accept(this);
 
         if(!type_deduction_reqd){
-            if(node->op == "-" && curr_type == grammarDFA::T_BOOL && curr_type != grammarDFA::T_STRING){
+            if(node->op == "-" && (curr_type == grammarDFA::T_BOOL || curr_type == grammarDFA::T_STRING)){
                 std::cerr << "ln " << node->line << ": binary operation " << node->op <<
                 " requires matching int, float or char types (given " << type_symbol2string(curr_type) << " instead)" << std::endl;
             }
@@ -236,6 +236,11 @@ void semantic_analysis::visit(astUNARY* node){
                 " requires a boolean operand (given " << type_symbol2string(curr_type) << " instead)" << std::endl;
             }
         }
+        else if(type_deduction_reqd && curr_type == grammarDFA::T_AUTO && node->op == "not"){
+            type_deduction_reqd = false;
+            curr_type = grammarDFA::T_BOOL;
+        }
+
     }
     else{
         type_deduction_reqd = true;

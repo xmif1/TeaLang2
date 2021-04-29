@@ -23,8 +23,69 @@ void interpreter::visit(astLITERAL* node){
     else if(curr_type == grammarDFA::T_FLOAT){
         curr_result = stof(node->lexeme);
     }
+    else if(curr_type == grammarDFA::T_CHAR){
+        string literal_cpy = node->lexeme;
+
+        std::size_t opening_apost = literal_cpy.find_first_of('\'');
+        if(opening_apost != string::npos){
+            literal_cpy.erase(opening_apost, 1);
+        }
+
+        std::size_t closing_apost = literal_cpy.find_last_of('\'');
+        if(closing_apost != string::npos){
+            literal_cpy.erase(closing_apost, 1);
+        }
+
+        if(literal_cpy[0] == '\\'){
+            if(literal_cpy[1] == '0'){
+                curr_result = '\0';
+            }
+            else if(literal_cpy[1] == '\\'){
+                curr_result = '\\';
+            }
+            else if(literal_cpy[1] == '\''){
+                curr_result = '\'';
+            }
+            else if(literal_cpy[1] == '"'){
+                curr_result = '\"';
+            }
+            else if(literal_cpy[1] == 'n'){
+                curr_result = '\n';
+            }
+            else if(literal_cpy[1] == 't'){
+                curr_result = '\t';
+            }
+            else if(literal_cpy[1] == 'r'){
+                curr_result = '\r';
+            }
+            else if(literal_cpy[1] == 'b'){
+                curr_result = '\b';
+            }
+            else if(literal_cpy[1] == 'f'){
+                curr_result = '\f';
+            }
+            else{
+                curr_result = '\v';
+            }
+        }
+        else{
+            curr_result = (char) literal_cpy[0];
+        }
+    }
     else{
-        curr_result = node->lexeme;
+        string literal_cpy = node->lexeme;
+
+        std::size_t opening_dquotes = literal_cpy.find_first_of('\"');
+        if(opening_dquotes != string::npos){
+            literal_cpy.erase(opening_dquotes, 1);
+        }
+
+        std::size_t closing_dquotes = literal_cpy.find_last_of('\"');
+        if(closing_dquotes != string::npos){
+            literal_cpy.erase(closing_dquotes, 1);
+        }
+
+        curr_result = literal_cpy;
     }
 }
 
@@ -41,6 +102,9 @@ void interpreter::visit(astIDENTIFIER* node){
     }
     else if(curr_type == grammarDFA::T_FLOAT){
         curr_result = get<float>(ret_var->literal);
+    }
+    else if(curr_type == grammarDFA::T_CHAR){
+        curr_result = get<char>(ret_var->literal);
     }
     else{
         string literal_cpy = get<string>(ret_var->literal);
@@ -111,6 +175,9 @@ void interpreter::visit(astADDOP* node){
         else if(curr_type == grammarDFA::T_FLOAT){
             curr_result = get<float>(op1_value) + get<float>(op2_value);
         }
+        else if(curr_type == grammarDFA::T_CHAR){
+            curr_result = (char) (get<char>(op1_value) + get<char>(op2_value));
+        }
         else{
             curr_result = get<string>(op1_value) + get<string>(op2_value);
         }
@@ -119,8 +186,11 @@ void interpreter::visit(astADDOP* node){
         if(curr_type == grammarDFA::T_INT){
             curr_result = get<int>(op1_value) - get<int>(op2_value);
         }
-        else{
+        else if(curr_type == grammarDFA::T_FLOAT){
             curr_result = get<float>(op1_value) - get<float>(op2_value);
+        }
+        else{
+            curr_result = (char) (get<char>(op1_value) - get<char>(op2_value));
         }
     }
     else{
@@ -145,6 +215,9 @@ void interpreter::visit(astRELOP* node){
         else if(curr_type == grammarDFA::T_FLOAT){
             curr_result = get<float>(op1_value) == get<float>(op2_value);
         }
+        else if(curr_type == grammarDFA::T_CHAR){
+            curr_result = get<char>(op1_value) == get<char>(op2_value);
+        }
         else{
             curr_result = get<string>(op1_value) == get<string>(op2_value);
         }
@@ -158,6 +231,9 @@ void interpreter::visit(astRELOP* node){
         }
         else if(curr_type == grammarDFA::T_FLOAT){
             curr_result = get<float>(op1_value) != get<float>(op2_value);
+        }
+        else if(curr_type == grammarDFA::T_CHAR){
+            curr_result = get<char>(op1_value) != get<char>(op2_value);
         }
         else{
             curr_result = get<string>(op1_value) != get<string>(op2_value);
@@ -173,6 +249,9 @@ void interpreter::visit(astRELOP* node){
         else if(curr_type == grammarDFA::T_FLOAT){
             curr_result = get<float>(op1_value) <= get<float>(op2_value);
         }
+        else if(curr_type == grammarDFA::T_CHAR){
+            curr_result = get<char>(op1_value) <= get<char>(op2_value);
+        }
         else{
             curr_result = get<string>(op1_value) <= get<string>(op2_value);
         }
@@ -186,6 +265,9 @@ void interpreter::visit(astRELOP* node){
         }
         else if(curr_type == grammarDFA::T_FLOAT){
             curr_result = get<float>(op1_value) >= get<float>(op2_value);
+        }
+        else if(curr_type == grammarDFA::T_CHAR){
+            curr_result = get<char>(op1_value) >= get<char>(op2_value);
         }
         else{
             curr_result = get<string>(op1_value) >= get<string>(op2_value);
@@ -201,6 +283,9 @@ void interpreter::visit(astRELOP* node){
         else if(curr_type == grammarDFA::T_FLOAT){
             curr_result = get<float>(op1_value) < get<float>(op2_value);
         }
+        else if(curr_type == grammarDFA::T_CHAR){
+            curr_result = get<char>(op1_value) < get<char>(op2_value);
+        }
         else{
             curr_result = get<string>(op1_value) < get<string>(op2_value);
         }
@@ -214,6 +299,9 @@ void interpreter::visit(astRELOP* node){
         }
         else if(curr_type == grammarDFA::T_FLOAT){
             curr_result = get<float>(op1_value) > get<float>(op2_value);
+        }
+        else if(curr_type == grammarDFA::T_CHAR){
+            curr_result = get<char>(op1_value) > get<char>(op2_value);
         }
         else{
             curr_result = get<string>(op1_value) > get<string>(op2_value);
@@ -301,11 +389,15 @@ void interpreter::visit(astASSIGNMENT* node){
 }
 
 void interpreter::visit(astVAR_DECL* node){
+    node->expression->accept(this);
+
     string var_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
     grammarDFA::Symbol var_type = ((astTYPE*) node->type)->type;
-    auto* var = new varSymbol(&var_ident, var_type);
+    if(var_type == grammarDFA::T_AUTO){
+        var_type = curr_type;
+    }
 
-    node->expression->accept(this);
+    auto* var = new varSymbol(&var_ident, var_type);
     var->set_literal(curr_result);
 
     symbolTable->insert(var);
@@ -323,6 +415,9 @@ void interpreter::visit(astPRINT* node){
     else if(curr_type == grammarDFA::T_FLOAT){
         std::cout << get<float>(curr_result) << std::endl;
     }
+    else if(curr_type == grammarDFA::T_CHAR){
+        std::cout << get<char>(curr_result) << std::endl;
+    }
     else{
         std::cout << get<string>(curr_result) << std::endl;
     }
@@ -331,6 +426,10 @@ void interpreter::visit(astPRINT* node){
 void interpreter::visit(astRETURN* node){
     node->expression->accept(this);
     functionStack->top().second = true;
+
+    if(functionStack->top().first->type == grammarDFA::T_AUTO){
+        functionStack->top().first->type = curr_type;
+    }
 }
 
 void interpreter::visit(astIF* node){

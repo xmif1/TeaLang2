@@ -59,10 +59,16 @@ grammarDFA::State grammarDFA::transition(State state, char c){
 }
 
 grammarDFA::TransitionType grammarDFA::get_transition_type(char c){
-    if((0x41 <= c && c <= 0x5A) || (0x61 <= c && c <= 0x7A)){
+    if(c == 'n' || c == 't' || c == 'r' || c == 'b' || c == 'f' || c == 'v'){
+        return ESC;
+    }
+    else if((0x41 <= c && c <= 0x5A) || (0x61 <= c && c <= 0x7A)){
         return LETTER;
     }
-    else if(0x30 <= c && c <= 0x39){
+    else if(c == 0x30 ){
+        return ZERO;
+    }
+    else if(0x31 <= c && c <= 0x39){
         return DIGIT;
     }
     else if(c == '_'){
@@ -95,6 +101,12 @@ grammarDFA::TransitionType grammarDFA::get_transition_type(char c){
     else if(c == ')'){
         return RBRACKET;
     }
+    else if(c == '['){
+        return LSQUARE;
+    }
+    else if(c == ']'){
+        return RSQUARE;
+    }
     else if(c == '{'){
         return LBRACE;
     }
@@ -124,6 +136,9 @@ grammarDFA::TransitionType grammarDFA::get_transition_type(char c){
     }
     else if(c == '\0'){
         return EOSTR;
+    }
+    else if(c == '\''){
+        return APOST;
     }
     else {
         return PRINTABLE;

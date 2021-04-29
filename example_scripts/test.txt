@@ -1,5 +1,5 @@
-//Function definition for Power
-float Pow(x:float, n:int){
+// Function definition for Power
+auto Pow(x:float, n:int){
     let y:float = 1.0;      // Declare y and set it to 1.0
     if(n > 0){
         for(; n > 0; n = n-1){
@@ -49,3 +49,5 @@ print XGreaterThanY(x, 2.3);           //true
 print XGreaterThanYv2(Square(1.5), y); //false
 print AverageOfThree(x, y, 1.2);       //3.28
 print JoinStr("Hello", " World!");     // Hello World!
+
+print '\n' + 'a';                      // 'k'
