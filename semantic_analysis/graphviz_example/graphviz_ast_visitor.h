@@ -15,6 +15,7 @@ public:
     void visit(astTYPE* node) override;
     void visit(astLITERAL* node) override;
     void visit(astIDENTIFIER* node) override;
+    void visit(astELEMENT* node) override;
     void visit(astMULTOP* node) override;
     void visit(astADDOP* node) override;
     void visit(astRELOP* node) override;
@@ -22,8 +23,10 @@ public:
     void visit(astFUNC_CALL* node) override;
     void visit(astSUBEXPR* node) override;
     void visit(astUNARY* node) override;
-    void visit(astASSIGNMENT* node) override;
+    void visit(astASSIGNMENT_IDENTIFIER* node) override;
+    void visit(astASSIGNMENT_ELEMENT* node) override;
     void visit(astVAR_DECL* node) override;
+    void visit(astARR_DECL* node) override;
     void visit(astPRINT* node) override;
     void visit(astRETURN* node) override;
     void visit(astIF* node) override;

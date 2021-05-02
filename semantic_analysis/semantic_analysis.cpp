@@ -247,7 +247,7 @@ void semantic_analysis::visit(astUNARY* node){
     }
 }
 
-void semantic_analysis::visit(astASSIGNMENT* node){
+void semantic_analysis::visit(astASSIGNMENT_IDENTIFIER* node){
     if(node->identifier != nullptr){
         node->identifier->accept(this);
         bool found_var = !type_deduction_reqd;

@@ -1,0 +1,26 @@
+// Function definition for Power over an array of floats
+auto[] Pow(x:float[], size:int, n:int){
+    let y[size]:float;
+
+    for(let i:int = 0; i < size; i = i + 1){
+        y[i] = Pow(x[i], n);
+    }
+
+    return y;
+}
+
+// Function definition for Power for a single float
+auto Pow(x:float, n:int){
+    let y:float = 1.0;      // Declare y and set it to 1.0
+    if(n > 0){
+        for(; n > 0; n = n-1){
+            y = y*x;        // Assignment y = y * x;
+        }
+    }else{
+        for(; n < 0; n = n+1){
+            y = y/x;        // Assignment y = y/x;
+        }
+    }
+
+    return y;               //return y and the result
+}

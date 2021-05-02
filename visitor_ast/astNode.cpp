@@ -57,6 +57,12 @@ void astIDENTIFIER::accept(visitor* v){
     v->visit(this);
 }
 
+void astELEMENT::accept(visitor* v){
+    identifier = children->at(0);
+    index = children->at(1);
+    v->visit(this);
+}
+
 void astMULTOP::accept(visitor* v){
     operand1 = children->at(0);
     operand2 = children->at(1);
@@ -95,8 +101,14 @@ void astUNARY::accept(visitor* v){
     v->visit(this);
 }
 
-void astASSIGNMENT::accept(visitor* v){
+void astASSIGNMENT_IDENTIFIER::accept(visitor* v){
     identifier = children->at(0);
+    expression = children->at(1);
+    v->visit(this);
+}
+
+void astASSIGNMENT_ELEMENT::accept(visitor* v){
+    element = children->at(0);
     expression = children->at(1);
     v->visit(this);
 }
@@ -105,6 +117,13 @@ void astVAR_DECL::accept(visitor* v){
     identifier = children->at(0);
     type = children->at(1);
     expression = children->at(2);
+    v->visit(this);
+}
+
+void astARR_DECL::accept(visitor* v){
+    identifier = children->at(0);
+    size = children->at(1);
+    type = children->at(2);
     v->visit(this);
 }
 

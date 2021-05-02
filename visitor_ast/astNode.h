@@ -81,10 +81,12 @@ public:
 class astTYPE: public astLeafNode{
 public:
     grammarDFA::Symbol type;
+    grammarDFA::Symbol object_class;
 
-    astTYPE(astInnerNode* parent, string lexeme, grammarDFA::Symbol type, unsigned int line) :
+    astTYPE(astInnerNode* parent, string lexeme, grammarDFA::Symbol type, grammarDFA::Symbol object_class, unsigned int line):
         astLeafNode(parent, "T_TYPE", line, std::move(lexeme)){
         this->type = type;
+        this->object_class = object_class;
     }
 
     void accept(visitor* v) override;
@@ -106,6 +108,18 @@ class astIDENTIFIER: public astLeafNode{
 public:
     astIDENTIFIER(astInnerNode* parent, string lexeme, unsigned int line) : astLeafNode(parent, "T_IDENTIFIER",
                                                                                         line, std::move(lexeme)){}
+
+    void accept(visitor* v) override;
+};
+
+class astELEMENT: public astInnerNode{
+public:
+    astNode* identifier;
+    astNode* index;
+
+    explicit astELEMENT(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "ELEMENT", line){
+        children->resize(2, nullptr);
+    }
 
     void accept(visitor* v) override;
 };
@@ -179,12 +193,24 @@ public:
     void accept(visitor* v) override;
 };
 
-class astASSIGNMENT: public astInnerNode{
+class astASSIGNMENT_IDENTIFIER: public astInnerNode{
 public:
     astNode* identifier;
     astNode* expression;
 
-    explicit astASSIGNMENT(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "ASSIGNMENT", line){
+    explicit astASSIGNMENT_IDENTIFIER(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "ASSIGNMENT", line){
+        children->resize(2, nullptr);
+    }
+
+    void accept(visitor* v) override;
+};
+
+class astASSIGNMENT_ELEMENT: public astInnerNode{
+public:
+    astNode* element;
+    astNode* expression;
+
+    explicit astASSIGNMENT_ELEMENT(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "ASSIGNMENT", line){
         children->resize(2, nullptr);
     }
 
@@ -198,6 +224,19 @@ public:
     astNode* expression;
 
     explicit astVAR_DECL(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "VAR_DECL", line){
+        children->resize(3, nullptr);
+    }
+
+    void accept(visitor* v) override;
+};
+
+class astARR_DECL: public astInnerNode{
+public:
+    astNode* identifier;
+    astNode* size;
+    astNode* type;
+
+    explicit astARR_DECL(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "ARR_DECL", line){
         children->resize(3, nullptr);
     }
 

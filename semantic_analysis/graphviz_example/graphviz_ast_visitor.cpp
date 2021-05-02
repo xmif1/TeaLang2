@@ -5,13 +5,21 @@
 #include "graphviz_ast_visitor.h"
 
 graphviz_ast_visitor::graphviz_ast_visitor(){
-    outfile.open("/Users/xandrumifsud/Documents/Dev/CPS2000/CPS2000/ast.dot");
+    outfile.open("//Users/xandrumifsud/Documents/Dev/TeaLang2/ast.dot");
     outfile << "digraph ast {" << std::endl;
 }
 
 void graphviz_ast_visitor::visit(astTYPE *node){}
 void graphviz_ast_visitor::visit(astLITERAL *node){}
 void graphviz_ast_visitor::visit(astIDENTIFIER *node){}
+
+void graphviz_ast_visitor::visit(astELEMENT *node){
+    outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->identifier->getLabel() << "\"" << std::endl;
+    outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->index->getLabel() << "\"" << std::endl;
+
+    node->identifier->accept(this);
+    node->index->accept(this);
+}
 
 void graphviz_ast_visitor::visit(astMULTOP *node){
     outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->operand1->getLabel() << "\"" << std::endl;
@@ -65,11 +73,19 @@ void graphviz_ast_visitor::visit(astUNARY *node){
     node->operand->accept(this);
 }
 
-void graphviz_ast_visitor::visit(astASSIGNMENT *node){
+void graphviz_ast_visitor::visit(astASSIGNMENT_IDENTIFIER *node){
     outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->identifier->getLabel() << "\"" << std::endl;
     outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->expression->getLabel() << "\"" << std::endl;
     
     node->identifier->accept(this);
+    node->expression->accept(this);
+}
+
+void graphviz_ast_visitor::visit(astASSIGNMENT_ELEMENT *node){
+    outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->element->getLabel() << "\"" << std::endl;
+    outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->expression->getLabel() << "\"" << std::endl;
+
+    node->element->accept(this);
     node->expression->accept(this);
 }
 
@@ -81,6 +97,16 @@ void graphviz_ast_visitor::visit(astVAR_DECL *node){
     node->identifier->accept(this);
     node->type->accept(this);
     node->expression->accept(this);
+}
+
+void graphviz_ast_visitor::visit(astARR_DECL *node){
+    for(auto &c : *node->children){
+        outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << c->getLabel() << "\"" << std::endl;
+    }
+
+    for(auto &c : *node->children){
+        c->accept(this);
+    }
 }
 
 void graphviz_ast_visitor::visit(astPRINT *node){

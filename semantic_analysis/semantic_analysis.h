@@ -22,7 +22,7 @@ public:
     void visit(astFUNC_CALL* node) override;
     void visit(astSUBEXPR* node) override;
     void visit(astUNARY* node) override;
-    void visit(astASSIGNMENT* node) override;
+    void visit(astASSIGNMENT_IDENTIFIER* node) override;
     void visit(astVAR_DECL* node) override;
     void visit(astPRINT* node) override;
     void visit(astRETURN* node) override;

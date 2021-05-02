@@ -107,17 +107,48 @@ void parser::ruleVAR_DECL(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_var_decl = new astVAR_DECL(parent, token_ptr->line); parent->add_child(ast_var_decl);
     state_stack.push({.parent = ast_var_decl, .symbol = grammarDFA::EXPRESSION});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_EQUALS});
-    state_stack.push({.parent = ast_var_decl, .symbol = grammarDFA::TYPE});
+    state_stack.push({.parent = ast_var_decl, .symbol = grammarDFA::TYPE_VAR});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_COLON});
     state_stack.push({.parent = ast_var_decl, .symbol = grammarDFA::IDENTIFIER});
-    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LET});
 }
 
-void parser::ruleASSIGNMENT(astInnerNode* parent, lexer::Token* token_ptr){
-    auto* ast_assignment = new astASSIGNMENT(parent, token_ptr->line); parent->add_child(ast_assignment);
+void parser::ruleARR_DECL(astInnerNode* parent, lexer::Token* token_ptr){
+    auto* ast_arr_decl = new astARR_DECL(parent, token_ptr->line); parent->add_child(ast_arr_decl);
+    state_stack.push({.parent = ast_arr_decl, .symbol = grammarDFA::ARR_DECL_ASSIGNMENT});
+    state_stack.push({.parent = ast_arr_decl, .symbol = grammarDFA::TYPE_ARR});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_COLON});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_RSQUARE});
+    state_stack.push({.parent = ast_arr_decl, .symbol = grammarDFA::EXPRESSION});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LSQUARE});
+    state_stack.push({.parent = ast_arr_decl, .symbol = grammarDFA::IDENTIFIER});
+}
+
+void parser::ruleARR_DECL_ASSIGNMENT(astInnerNode* parent, lexer::Token* token_ptr){
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_RBRACE});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::ARR_DECL_ASSIGNMENT_ext});
+    state_stack.push({.parent = parent, .symbol = grammarDFA::EXPRESSION});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LBRACE});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_EQUALS});
+}
+
+void parser::ruleARR_DECL_ASSIGNMENT_ext(astInnerNode* parent, lexer::Token* token_ptr){
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::ARR_DECL_ASSIGNMENT_ext});
+    state_stack.push({.parent = parent, .symbol = grammarDFA::EXPRESSION});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_COMMA});
+}
+
+void parser::ruleASSIGNMENT_IDENTIFIER(astInnerNode* parent, lexer::Token* token_ptr){
+    auto* ast_assignment = new astASSIGNMENT_IDENTIFIER(parent, token_ptr->line); parent->add_child(ast_assignment);
     state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::EXPRESSION});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_EQUALS});
     state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::IDENTIFIER});
+}
+
+void parser::ruleASSIGNMENT_ELEMENT(astInnerNode* parent, lexer::Token* token_ptr){
+    auto* ast_assignment = new astASSIGNMENT_ELEMENT(parent, token_ptr->line); parent->add_child(ast_assignment);
+    state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::EXPRESSION});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_EQUALS});
+    state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::ELEMENT});
 }
 
 void parser::rulePRINT(astInnerNode* parent, lexer::Token* token_ptr){
@@ -143,9 +174,19 @@ void parser::ruleWHILE(astInnerNode* parent, lexer::Token* token_ptr){
 
 void parser::ruleFPARAM(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_fparam = new astFPARAM(parent, token_ptr->line); parent->add_child(ast_fparam);
-    state_stack.push({.parent = ast_fparam, .symbol = grammarDFA::TYPE});
+    state_stack.push({.parent = ast_fparam, .symbol = grammarDFA::FPARAM_TYPE});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_COLON});
     state_stack.push({.parent = ast_fparam, .symbol = grammarDFA::IDENTIFIER});
+}
+
+void parser::ruleFPARAM_TYPE_ARR(astInnerNode* parent, lexer::Token* token_ptr){
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_RSQUARE});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LSQUARE});
+    state_stack.push({.parent = parent, .symbol = grammarDFA::TYPE_ARR});
+}
+
+void parser::ruleFPARAM_TYPE_VAR(astInnerNode* parent, lexer::Token* token_ptr){
+    state_stack.push({.parent = parent, .symbol = grammarDFA::TYPE_VAR});
 }
 
 void parser::ruleFPARAMS(astInnerNode* parent, lexer::Token* token_ptr){
@@ -250,7 +291,19 @@ void parser::ruleFUNC_DECL(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = ast_func_decl, .symbol = grammarDFA::FUNC_DECL_FPARAMS});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LBRACKET});
     state_stack.push({.parent = ast_func_decl, .symbol = grammarDFA::IDENTIFIER});
-    state_stack.push({.parent = ast_func_decl, .symbol = grammarDFA::TYPE});
+    state_stack.push({.parent = ast_func_decl, .symbol = grammarDFA::TYPE_VAR});
+}
+
+void parser::ruleFUNC_DECL_ARR(astInnerNode* parent, lexer::Token* token_ptr){
+    auto* ast_func_decl = new astFUNC_DECL(parent, token_ptr->line); parent->add_child(ast_func_decl);
+    state_stack.push({.parent = ast_func_decl, .symbol = grammarDFA::BLOCK});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_RBRACKET});
+    state_stack.push({.parent = ast_func_decl, .symbol = grammarDFA::FUNC_DECL_FPARAMS});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LBRACKET});
+    state_stack.push({.parent = ast_func_decl, .symbol = grammarDFA::IDENTIFIER});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_RSQUARE});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LSQUARE});
+    state_stack.push({.parent = ast_func_decl, .symbol = grammarDFA::TYPE_ARR});
 }
 
 void parser::ruleFUNC_DECL_FPARAMS(astInnerNode* parent, lexer::Token* token_ptr){
@@ -265,7 +318,7 @@ void parser::ruleFOR(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_SEMICOLON});
     state_stack.push({.parent = ast_for, .symbol = grammarDFA::FOR_EXPRESSION});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_SEMICOLON});
-    state_stack.push({.parent = ast_for, .symbol = grammarDFA::FOR_VAR_DECL});
+    state_stack.push({.parent = ast_for, .symbol = grammarDFA::FOR_DECL});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LBRACKET});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_FOR});
 }
@@ -278,13 +331,15 @@ void parser::ruleFOR_EXPRESSION(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = parent, .symbol = grammarDFA::EXPRESSION});
 }
 
-void parser::ruleFOR_VAR_DECL(astInnerNode* parent, lexer::Token* token_ptr){
-    state_stack.push({.parent = parent, .symbol = grammarDFA::VAR_DECL});
+void parser::ruleFOR_DECL(astInnerNode* parent, lexer::Token* token_ptr){
+    state_stack.push({.parent = parent, .symbol = grammarDFA::DECL});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LET});
 }
 
-void parser::ruleSTATEMENT_T_LET(astInnerNode* parent, lexer::Token* token_ptr){
+void parser::ruleSTATEMENT_T_LET_DECL(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_SEMICOLON});
-    state_stack.push({.parent = parent, .symbol = grammarDFA::VAR_DECL});
+    state_stack.push({.parent = parent, .symbol = grammarDFA::DECL});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LET});
 }
 
 void parser::ruleSTATEMENT_T_IDENTIFIER(astInnerNode* parent, lexer::Token* token_ptr){
@@ -324,6 +379,10 @@ void parser::ruleSTATEMENT_T_LBRACE(astInnerNode* parent, lexer::Token* token_pt
 
 void parser::ruleFACTOR_LITERAL(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = parent, .symbol = grammarDFA::LITERAL});
+}
+
+void parser::ruleFACTOR_ELEMENT(astInnerNode* parent, lexer::Token* token_ptr){
+    state_stack.push({.parent = parent, .symbol = grammarDFA::ELEMENT});
 }
 
 void parser::ruleFACTOR_IDENTIFIER(astInnerNode* parent, lexer::Token* token_ptr){
@@ -393,34 +452,29 @@ void parser::ruleEXPRESSION_ext(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = nullptr, .symbol = token_ptr->symbol});
 }
 
-void parser::ruleTYPE(astInnerNode* parent, lexer::Token* token_ptr){
-    grammarDFA::Symbol type;
-    if(token_ptr->lexeme == "bool"){
-        type = grammarDFA::T_BOOL;
-    }
-    else if(token_ptr->lexeme == "int"){
-        type = grammarDFA::T_INT;
-    }
-    else if(token_ptr->lexeme == "float"){
-        type = grammarDFA::T_FLOAT;
-    }
-    else if(token_ptr->lexeme == "string"){
-        type = grammarDFA::T_STRING;
-    }
-    else if(token_ptr->lexeme == "char"){
-        type = grammarDFA::T_CHAR;
-    }
-    else{
-        type = grammarDFA::T_AUTO;
-    }
+void parser::ruleTYPE_VAR(astInnerNode* parent, lexer::Token* token_ptr){
+    parent->add_child(new astTYPE(parent, token_ptr->lexeme, type_string2symbol(token_ptr->lexeme),
+                                  grammarDFA::VARIABLE, token_ptr->line));
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_TYPE});
+}
 
-    parent->add_child(new astTYPE(parent, token_ptr->lexeme, type, token_ptr->line));
+void parser::ruleTYPE_ARR(astInnerNode* parent, lexer::Token* token_ptr){
+    parent->add_child(new astTYPE(parent, token_ptr->lexeme, type_string2symbol(token_ptr->lexeme),
+                                  grammarDFA::ARRAY, token_ptr->line));
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_TYPE});
 }
 
 void parser::ruleIDENTIFIER(astInnerNode* parent, lexer::Token* token_ptr){
     parent->add_child(new astIDENTIFIER(parent, token_ptr->lexeme, token_ptr->line));
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_IDENTIFIER});
+}
+
+void parser::ruleELEMENT(astInnerNode* parent, lexer::Token* token_ptr){
+    auto* ast_element = new astELEMENT(parent, token_ptr->line); parent->add_child(ast_element);
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_RSQUARE});
+    state_stack.push({.parent = ast_element, .symbol = grammarDFA::EXPRESSION});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LSQUARE});
+    state_stack.push({.parent = ast_element, .symbol = grammarDFA::IDENTIFIER});
 }
 
 void parser::null_rule(astInnerNode* parent, lexer::Token* token_ptr){}
@@ -448,12 +502,60 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
                                                 pr = &parser::ruleBLOCK_ext;
             }
         }                                                                                       break;
-        case grammarDFA::VAR_DECL:              pr = &parser::ruleVAR_DECL;                     break;
-        case grammarDFA::ASSIGNMENT:            pr = &parser::ruleASSIGNMENT;                   break;
+        case grammarDFA::DECL: {
+            lexer::Token peek_token;
+            if(!(*lexer_ptr).peekTokens(&peek_token, 1)){
+                throw std::runtime_error("Lexer encountered an error while peeking tokens...exiting...");
+            }
+
+            if(peek_token.symbol == grammarDFA::T_LSQUARE){
+                pr = &parser::ruleARR_DECL;
+            }else{
+                pr = &parser::ruleVAR_DECL;
+            }
+        }                                                                                      break;
+        case grammarDFA::ARR_DECL_ASSIGNMENT: {
+            if(curr_tok_symbol == grammarDFA::T_EQUALS){
+                                                pr = &parser::ruleARR_DECL_ASSIGNMENT;
+            }else{
+                                                pr = &parser::null_rule;
+            }
+        }                                                                                       break;
+        case grammarDFA::ARR_DECL_ASSIGNMENT_ext: {
+            if(curr_tok_symbol == grammarDFA::T_COMMA){
+                pr = &parser::ruleARR_DECL_ASSIGNMENT_ext;
+            }else{
+                pr = &parser::null_rule;
+            }
+        }                                                                                       break;
+        case grammarDFA::ASSIGNMENT: {
+            lexer::Token peek_token;
+            if(!(*lexer_ptr).peekTokens(&peek_token, 1)){
+                throw std::runtime_error("Lexer encountered an error while peeking tokens...exiting...");
+            }
+
+            if(peek_token.symbol == grammarDFA::T_LSQUARE){
+                pr = &parser::ruleASSIGNMENT_ELEMENT;
+            }else{
+                pr = &parser::ruleASSIGNMENT_IDENTIFIER;
+            }
+        }                                                                                       break;
         case grammarDFA::PRINT:                 pr = &parser::rulePRINT;                        break;
         case grammarDFA::RETURN:                pr = &parser::ruleRETURN;                       break;
         case grammarDFA::WHILE:                 pr = &parser::ruleWHILE;                        break;
         case grammarDFA::FPARAM:                pr = &parser::ruleFPARAM;                       break;
+        case grammarDFA::FPARAM_TYPE: {
+            lexer::Token peek_token;
+            if(!(*lexer_ptr).peekTokens(&peek_token, 1)){
+                throw std::runtime_error("Lexer encountered an error while peeking tokens...exiting...");
+            }
+
+            if(peek_token.symbol == grammarDFA::T_LSQUARE){
+                pr = &parser::ruleFPARAM_TYPE_ARR;
+            }else{
+                pr = &parser::ruleFPARAM_TYPE_VAR;
+            }
+        }                                                                                       break;
         case grammarDFA::FPARAMS:               pr = &parser::ruleFPARAMS;                      break;
         case grammarDFA::FPARAMS_ext: {
             if(curr_tok_symbol == grammarDFA::T_COMMA){
@@ -504,7 +606,18 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
                                                 pr = &parser::optional_pass_rule;
             }
         }                                                                                       break;
-        case grammarDFA::FUNC_DECL:             pr = &parser::ruleFUNC_DECL;                    break;
+        case grammarDFA::FUNC_DECL: {
+            lexer::Token peek_token;
+            if(!(*lexer_ptr).peekTokens(&peek_token, 1)){
+                throw std::runtime_error("Lexer encountered an error while peeking tokens...exiting...");
+            }
+
+            if(peek_token.symbol == grammarDFA::T_LSQUARE){
+                                                pr = &parser::ruleFUNC_DECL_ARR;
+            }else{
+                                                pr = &parser::ruleFUNC_DECL;
+            }
+        }                                                                                       break;
         case grammarDFA::FUNC_DECL_FPARAMS: {
             if(curr_tok_symbol == grammarDFA::T_RBRACKET){
                                                 pr = &parser::optional_pass_rule;
@@ -513,11 +626,11 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
             }
         }                                                                                       break;
         case grammarDFA::FOR:                   pr = &parser::ruleFOR;                          break;
-        case grammarDFA::FOR_VAR_DECL: {
+        case grammarDFA::FOR_DECL: {
             if(curr_tok_symbol == grammarDFA::T_SEMICOLON){
                                                 pr = &parser::optional_pass_rule;
             }else{
-                                                pr = &parser::ruleFOR_VAR_DECL;
+                                                pr = &parser::ruleFOR_DECL;
             }
         }                                                                                       break;
         case grammarDFA::FOR_EXPRESSION: {
@@ -536,7 +649,7 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
         }                                                                                       break;
         case grammarDFA::STATEMENT: {
             switch(curr_tok_symbol){
-                case grammarDFA::T_LET:         pr = &parser::ruleSTATEMENT_T_LET;              break;
+                case grammarDFA::T_LET:         pr = &parser::ruleSTATEMENT_T_LET_DECL;         break;
                 case grammarDFA::T_IDENTIFIER:  pr = &parser::ruleSTATEMENT_T_IDENTIFIER;       break;
                 case grammarDFA::T_PRINT:       pr = &parser::ruleSTATEMENT_T_PRINT;            break;
                 case grammarDFA::T_IF:          pr = &parser::ruleSTATEMENT_T_IF;               break;
@@ -566,6 +679,10 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
 
                     if(peek_token.symbol == grammarDFA::T_LBRACKET){
                                                 pr = &parser::ruleFACTOR_FUNC_CALL;
+                    }
+                    else if(peek_token.symbol == grammarDFA::T_LSQUARE){
+                                                pr = &parser::ruleFACTOR_ELEMENT;
+
                     }else{
                                                 pr = &parser::ruleFACTOR_IDENTIFIER;
                     }
@@ -599,8 +716,10 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
                                                 pr = &parser::null_rule;
             }
         }                                                                                       break;
-        case grammarDFA::TYPE:                  pr = &parser::ruleTYPE;                         break;
+        case grammarDFA::TYPE_VAR:              pr = &parser::ruleTYPE_VAR;                     break;
+        case grammarDFA::TYPE_ARR:              pr = &parser::ruleTYPE_ARR;                     break;
         case grammarDFA::IDENTIFIER:            pr = &parser::ruleIDENTIFIER;                   break;
+        case grammarDFA::ELEMENT:               pr = &parser::ruleELEMENT;                      break;
         default:                                pr = nullptr;
     }
 
@@ -609,4 +728,25 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
 
 parser::parse_error parser::error_table(int curr_symbol, int curr_token){
     return &parser::genericError;
+}
+
+grammarDFA::Symbol parser::type_string2symbol(const string& type){
+    if(type == "bool"){
+        return grammarDFA::T_BOOL;
+    }
+    else if(type == "int"){
+        return grammarDFA::T_INT;
+    }
+    else if(type == "float"){
+        return grammarDFA::T_FLOAT;
+    }
+    else if(type == "string"){
+        return grammarDFA::T_STRING;
+    }
+    else if(type == "char"){
+        return grammarDFA::T_CHAR;
+    }
+    else{
+        return grammarDFA::T_AUTO;
+    }
 }

@@ -34,11 +34,17 @@ private:
     void ruleBLOCK(astInnerNode*,  lexer::Token*);
     void ruleBLOCK_ext(astInnerNode*,  lexer::Token*);
     void ruleVAR_DECL(astInnerNode*,  lexer::Token*);
-    void ruleASSIGNMENT(astInnerNode*,  lexer::Token*);
+    void ruleARR_DECL(astInnerNode*,  lexer::Token*);
+    void ruleARR_DECL_ASSIGNMENT(astInnerNode*,  lexer::Token*);
+    void ruleARR_DECL_ASSIGNMENT_ext(astInnerNode*,  lexer::Token*);
+    void ruleASSIGNMENT_IDENTIFIER(astInnerNode*,  lexer::Token*);
+    void ruleASSIGNMENT_ELEMENT(astInnerNode*,  lexer::Token*);
     void rulePRINT(astInnerNode*,  lexer::Token*);
     void ruleRETURN(astInnerNode*,  lexer::Token*);
     void ruleWHILE(astInnerNode*,  lexer::Token*);
     void ruleFPARAM(astInnerNode*,  lexer::Token*);
+    void ruleFPARAM_TYPE_ARR(astInnerNode*,  lexer::Token*);
+    void ruleFPARAM_TYPE_VAR(astInnerNode*,  lexer::Token*);
     void ruleFPARAMS(astInnerNode*,  lexer::Token*);
     void ruleFPARAMS_ext_T_COMMA(astInnerNode*,  lexer::Token*);
     void ruleAPARAMS(astInnerNode*,  lexer::Token*);
@@ -56,12 +62,13 @@ private:
     void ruleIF(astInnerNode*,  lexer::Token*);
     void ruleELSE_T_ELSE(astInnerNode*,  lexer::Token*);
     void ruleFUNC_DECL(astInnerNode*,  lexer::Token*);
+    void ruleFUNC_DECL_ARR(astInnerNode*,  lexer::Token*);
     void ruleFUNC_DECL_FPARAMS(astInnerNode*,  lexer::Token*);
     void ruleFOR(astInnerNode*,  lexer::Token*);
-    void ruleFOR_VAR_DECL(astInnerNode*,  lexer::Token*);
+    void ruleFOR_DECL(astInnerNode*,  lexer::Token*);
     void ruleFOR_EXPRESSION(astInnerNode*,  lexer::Token*);
     void ruleFOR_ASSIGNMENT(astInnerNode*,  lexer::Token*);
-    void ruleSTATEMENT_T_LET(astInnerNode*,  lexer::Token*);
+    void ruleSTATEMENT_T_LET_DECL(astInnerNode*,  lexer::Token*);
     void ruleSTATEMENT_T_IDENTIFIER(astInnerNode*,  lexer::Token*);
     void ruleSTATEMENT_T_PRINT(astInnerNode*,  lexer::Token*);
     void ruleSTATEMENT_T_IF(astInnerNode*,  lexer::Token*);
@@ -74,6 +81,7 @@ private:
     void ruleFACTOR_SUBEXPR(astInnerNode*,  lexer::Token*);
     void ruleFACTOR_UNARY(astInnerNode*,  lexer::Token*);
     void ruleFACTOR_FUNC_CALL(astInnerNode*,  lexer::Token*);
+    void ruleFACTOR_ELEMENT(astInnerNode*,  lexer::Token*);
     void ruleFACTOR_IDENTIFIER(astInnerNode*,  lexer::Token*);
     void ruleTERM(astInnerNode*,  lexer::Token*);
     void ruleTERM_ext(astInnerNode*,  lexer::Token*);
@@ -81,13 +89,16 @@ private:
     void ruleS_EXPR_ext(astInnerNode*,  lexer::Token*);
     void ruleEXPRESSION(astInnerNode*,  lexer::Token*);
     void ruleEXPRESSION_ext(astInnerNode*,  lexer::Token*);
-    void ruleTYPE(astInnerNode*,  lexer::Token*);
+    void ruleTYPE_VAR(astInnerNode*,  lexer::Token*);
+    void ruleTYPE_ARR(astInnerNode*,  lexer::Token*);
     void ruleIDENTIFIER(astInnerNode*,  lexer::Token*);
+    void ruleELEMENT(astInnerNode*,  lexer::Token*);
     void null_rule(astInnerNode*,  lexer::Token*);
     void optional_pass_rule(astInnerNode*,  lexer::Token*);
     void panic_mode_recovery(lexer* lexer_ptr, lexer::Token*, State*);
     static parser::production_rule parse_table(int, int, lexer*);
     static parser::parse_error error_table(int, int);
+    grammarDFA::Symbol type_string2symbol(const string &type);
 };
 
 #endif //CPS2000_PARSER_H
