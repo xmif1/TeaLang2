@@ -18,8 +18,8 @@ typedef unordered_multimap<string, symbol*> scope;
 
 class symbol_table{
 public:
-    funcSymbol* lookup(const string& identifier, vector<varSymbol*>* fparams);
-    varSymbol* lookup(const string& identifier);
+    funcSymbol* lookup(const string& identifier, vector<symbol*>* fparams);
+    symbol* lookup(const string& identifier);
     bool insert(symbol* s);
     void push_scope();
     void pop_scope();

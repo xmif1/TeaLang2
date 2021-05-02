@@ -95,19 +95,19 @@ void interpreter::visit(astIDENTIFIER* node){
     curr_type = ret_var->type;
 
     if(curr_type == grammarDFA::T_BOOL){
-        curr_result = get<bool>(ret_var->literal);
+        curr_result = get<bool>(ret_var->object);
     }
     else if(curr_type == grammarDFA::T_INT){
-        curr_result = get<int>(ret_var->literal);
+        curr_result = get<int>(ret_var->object);
     }
     else if(curr_type == grammarDFA::T_FLOAT){
-        curr_result = get<float>(ret_var->literal);
+        curr_result = get<float>(ret_var->object);
     }
     else if(curr_type == grammarDFA::T_CHAR){
-        curr_result = get<char>(ret_var->literal);
+        curr_result = get<char>(ret_var->object);
     }
     else{
-        string literal_cpy = get<string>(ret_var->literal);
+        string literal_cpy = get<string>(ret_var->object);
 
         std::size_t opening_dquotes = literal_cpy.find_first_of('\"');
         if(opening_dquotes != string::npos){
@@ -315,7 +315,7 @@ void interpreter::visit(astAPARAMS* node){
     for(size_t i = 0; i < node->n_children; i++){
         (node->children->at(i))->accept(this);
         auto* var = new varSymbol(nullptr, curr_type);
-        var->set_literal(curr_result);
+        var->set_object(curr_result);
 
         (functionStack->top().first)->fparams->push_back(var);
     }
@@ -338,7 +338,7 @@ void interpreter::visit(astFUNC_CALL* node){
     for(size_t i = 0; i < (functionStack->top().first)->fparams->size(); i++){
         auto* var = new varSymbol(&(functionStack->top().first)->fparams->at(i)->identifier,
                                    (functionStack->top().first)->fparams->at(i)->type);
-        var->set_literal(expected_func->fparams->at(i)->literal);
+        var->set_object(expected_func->fparams->at(i)->object);
 
         symbolTable->insert(var);
     }
@@ -354,7 +354,7 @@ void interpreter::visit(astFUNC_CALL* node){
     }
 
     curr_type = (functionStack->top().first)->type;
-    (functionStack->top().first)->set_literal(curr_result);
+    (functionStack->top().first)->set_object(curr_result);
 
     functionStack->pop();
     symbolTable->pop_scope();
@@ -385,7 +385,7 @@ void interpreter::visit(astASSIGNMENT* node){
     varSymbol* ret_var = symbolTable->lookup(((astIDENTIFIER* )node->identifier)->lexeme);
 
     node->expression->accept(this);
-    ret_var->set_literal(curr_result);
+    ret_var->set_object(curr_result);
 }
 
 void interpreter::visit(astVAR_DECL* node){
@@ -398,7 +398,7 @@ void interpreter::visit(astVAR_DECL* node){
     }
 
     auto* var = new varSymbol(&var_ident, var_type);
-    var->set_literal(curr_result);
+    var->set_object(curr_result);
 
     symbolTable->insert(var);
 }
@@ -446,7 +446,7 @@ void interpreter::visit(astIF* node){
 void interpreter::visit(astFOR* node){
     symbolTable->push_scope();
 
-    if(node->var_decl != nullptr){ node->var_decl->accept(this);}
+    if(node->decl != nullptr){ node->decl->accept(this);}
 
     while(true){
         node->expression->accept(this);

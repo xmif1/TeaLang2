@@ -1,7 +1,7 @@
 /* function example to test functions with auto return types, including recursive functions without any base cases
  * from which the return type can be deduced. The functions also consider different orderings of the return statements.
  * For example, if the first encounter of a return statement is a recursive call (i.e. the type has not yet been deduced,
- * but the second encounter of a return statement is a literal (i.e. the return type can be deduced), then no semantic
+ * but the second encounter of a return statement is a object (i.e. the return type can be deduced), then no semantic
  * error should be reported.
  */
 

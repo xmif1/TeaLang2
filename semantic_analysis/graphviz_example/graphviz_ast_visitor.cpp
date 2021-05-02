@@ -130,12 +130,12 @@ void graphviz_ast_visitor::visit(astIF *node){
 }
 
 void graphviz_ast_visitor::visit(astFOR *node){
-    if(node->var_decl != nullptr){ outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->var_decl->getLabel() << "\"" << std::endl;}
+    if(node->decl != nullptr){ outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->decl->getLabel() << "\"" << std::endl;}
     outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->expression->getLabel() << "\"" << std::endl;
     if(node->assignment != nullptr){ outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->assignment->getLabel() << "\"" << std::endl;}
     outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->for_block->getLabel() << "\"" << std::endl;
 
-    if(node->var_decl != nullptr){ node->var_decl->accept(this);}
+    if(node->decl != nullptr){ node->decl->accept(this);}
     node->expression->accept(this);
     if(node->assignment != nullptr){ node->assignment->accept(this);}
     node->for_block->accept(this);

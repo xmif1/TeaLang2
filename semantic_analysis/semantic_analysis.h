@@ -15,6 +15,7 @@ public:
     void visit(astTYPE* node) override;
     void visit(astLITERAL* node) override;
     void visit(astIDENTIFIER* node) override;
+    void visit(astELEMENT* node) override;
     void visit(astMULTOP* node) override;
     void visit(astADDOP* node) override;
     void visit(astRELOP* node) override;
@@ -23,7 +24,9 @@ public:
     void visit(astSUBEXPR* node) override;
     void visit(astUNARY* node) override;
     void visit(astASSIGNMENT_IDENTIFIER* node) override;
+    void visit(astASSIGNMENT_ELEMENT* node) override;
     void visit(astVAR_DECL* node) override;
+    void visit(astARR_DECL* node) override;
     void visit(astPRINT* node) override;
     void visit(astRETURN* node) override;
     void visit(astIF* node) override;
@@ -40,10 +43,11 @@ private:
     symbol_table* symbolTable = new symbol_table();
     bool type_deduction_reqd = false;
     grammarDFA::Symbol curr_type;
+    grammarDFA::Symbol curr_obj_class;
 
-    static string type_symbol2string(grammarDFA::Symbol type);
-    static string typeVect_symbol2string(vector<varSymbol*>* varVect);
-    grammarDFA::Symbol binop_type_check(astBinaryOp* binop_node);
+    static string type_symbol2string(grammarDFA::Symbol type, grammarDFA::Symbol obj_class);
+    static string typeVect_symbol2string(vector<symbol*>* typeVect);
+    void binop_type_check(astBinaryOp* binop_node);
 };
 
 #endif //CPS2000_SEMANTIC_ANALYSIS_H

@@ -145,7 +145,7 @@ void astIF::accept(visitor* v){
 }
 
 void astFOR::accept(visitor* v){
-    var_decl = children->at(0);
+    decl = children->at(0);
     expression = children->at(1);
     assignment = children->at(2);
     for_block = children->at(3);

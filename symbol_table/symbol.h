@@ -15,17 +15,14 @@
 using namespace std;
 
 typedef variant<bool, int, float, char, string> literal_t;
-
-enum IdentifierType{
-    VAR, FUNC
-};
+typedef variant<literal_t, vector<literal_t>> obj_t;
 
 class symbol{
 public:
     string identifier;
     grammarDFA::Symbol type;
-    IdentifierType id_type;
-    literal_t literal;
+    grammarDFA::Symbol object_class;
+    obj_t object;
     
     symbol(string* identifier, grammarDFA::Symbol type){
         if(identifier != nullptr){
@@ -34,8 +31,8 @@ public:
         this->type = type;
     }
 
-    void set_literal(literal_t value){
-        this->literal = std::move(value);
+    void set_object(obj_t value){
+        this->object = std::move(value);
     }
 };
 
@@ -43,17 +40,31 @@ class varSymbol: public symbol{
 public:
 
     varSymbol(string* identifier, grammarDFA::Symbol type) : symbol(identifier, type){
-        id_type = VAR;
+        object_class = grammarDFA::SINGLETON;
+    };
+};
+
+class arrSymbol: public symbol{
+public:
+    int size;
+
+    arrSymbol(string* identifier, grammarDFA::Symbol type, int size) : symbol(identifier, type){
+        object_class = grammarDFA::ARRAY;
+        this->size = size;
     };
 };
 
 class funcSymbol: public symbol{
 public:
-    vector<varSymbol*>* fparams;
+    grammarDFA::Symbol ret_obj_class;
+    vector<symbol*>* fparams;
     astBLOCK* func_ref;
 
-    funcSymbol(string* identifier, grammarDFA::Symbol type, vector<varSymbol*>* fparams) : symbol(identifier, type){
-        id_type = FUNC;
+    funcSymbol(string* identifier, grammarDFA::Symbol type, grammarDFA::Symbol ret_obj_class,
+               vector<symbol*>* fparams) : symbol(identifier, type){
+
+        object_class = grammarDFA::FUNCTION;
+        this->ret_obj_class = ret_obj_class;
         this->fparams = fparams;
     };
 

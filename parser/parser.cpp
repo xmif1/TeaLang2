@@ -125,14 +125,14 @@ void parser::ruleARR_DECL(astInnerNode* parent, lexer::Token* token_ptr){
 
 void parser::ruleARR_DECL_ASSIGNMENT(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_RBRACE});
-    state_stack.push({.parent = nullptr, .symbol = grammarDFA::ARR_DECL_ASSIGNMENT_ext});
+    state_stack.push({.parent = parent, .symbol = grammarDFA::ARR_DECL_ASSIGNMENT_ext});
     state_stack.push({.parent = parent, .symbol = grammarDFA::EXPRESSION});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LBRACE});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_EQUALS});
 }
 
 void parser::ruleARR_DECL_ASSIGNMENT_ext(astInnerNode* parent, lexer::Token* token_ptr){
-    state_stack.push({.parent = nullptr, .symbol = grammarDFA::ARR_DECL_ASSIGNMENT_ext});
+    state_stack.push({.parent = parent, .symbol = grammarDFA::ARR_DECL_ASSIGNMENT_ext});
     state_stack.push({.parent = parent, .symbol = grammarDFA::EXPRESSION});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_COMMA});
 }
@@ -454,7 +454,7 @@ void parser::ruleEXPRESSION_ext(astInnerNode* parent, lexer::Token* token_ptr){
 
 void parser::ruleTYPE_VAR(astInnerNode* parent, lexer::Token* token_ptr){
     parent->add_child(new astTYPE(parent, token_ptr->lexeme, type_string2symbol(token_ptr->lexeme),
-                                  grammarDFA::VARIABLE, token_ptr->line));
+                                  grammarDFA::SINGLETON, token_ptr->line));
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_TYPE});
 }
 

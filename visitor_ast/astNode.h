@@ -280,7 +280,7 @@ public:
 
 class astFOR: public astInnerNode{
 public:
-    astNode* var_decl;
+    astNode* decl;
     astNode* expression;
     astNode* assignment;
     astNode* for_block;
