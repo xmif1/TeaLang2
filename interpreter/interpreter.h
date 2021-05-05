@@ -5,7 +5,6 @@
 #ifndef CPS2000_INTERPRETER_H
 #define CPS2000_INTERPRETER_H
 
-
 #include "../symbol_table/symbol_table.h"
 #include "../symbol_table/symbol.h"
 #include "../visitor_ast/visitor.h"
@@ -16,6 +15,7 @@ public:
     void visit(astTYPE* node) override;
     void visit(astLITERAL* node) override;
     void visit(astIDENTIFIER* node) override;
+    void visit(astELEMENT* node) override;
     void visit(astMULTOP* node) override;
     void visit(astADDOP* node) override;
     void visit(astRELOP* node) override;
@@ -23,8 +23,10 @@ public:
     void visit(astFUNC_CALL* node) override;
     void visit(astSUBEXPR* node) override;
     void visit(astUNARY* node) override;
-    void visit(astASSIGNMENT* node) override;
+    void visit(astASSIGNMENT_IDENTIFIER* node) override;
+    void visit(astASSIGNMENT_ELEMENT* node) override;
     void visit(astVAR_DECL* node) override;
+    void visit(astARR_DECL* node) override;
     void visit(astPRINT* node) override;
     void visit(astRETURN* node) override;
     void visit(astIF* node) override;
@@ -40,7 +42,14 @@ private:
     symbol_table* symbolTable = new symbol_table();
     stack<pair<funcSymbol*, bool>>* functionStack = new stack<pair<funcSymbol*, bool>>; // 2nd used to check if func returns
     grammarDFA::Symbol curr_type;
-    literal_t curr_result;
+    grammarDFA::Symbol curr_obj_class;
+    obj_t curr_result;
+
+    literal_t multop(string op, int line, literal_t lit1, literal_t lit2);
+    literal_t addop(string op, literal_t lit1, literal_t lit2);
+    literal_t relop(string op, literal_t lit1, literal_t lit2);
+    literal_t unary(string op, literal_t literal);
+    literal_t default_literal(grammarDFA::Symbol type);
 };
 
 #endif //CPS2000_INTERPRETER_H

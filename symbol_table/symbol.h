@@ -15,7 +15,8 @@
 using namespace std;
 
 typedef variant<bool, int, float, char, string> literal_t;
-typedef variant<literal_t, vector<literal_t>> obj_t;
+typedef vector<literal_t>* literal_arr_t;
+typedef variant<literal_t, literal_arr_t> obj_t;
 
 class symbol{
 public:

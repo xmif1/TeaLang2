@@ -8,6 +8,7 @@ void interpreter::visit(astTYPE* node){}
 
 void interpreter::visit(astLITERAL* node){
     curr_type = node->type;
+    curr_obj_class = grammarDFA::SINGLETON;
 
     if(curr_type == grammarDFA::T_BOOL){
         if(node->lexeme == "true"){
@@ -90,24 +91,82 @@ void interpreter::visit(astLITERAL* node){
 }
 
 // only called when the identifier refers to an operand standing for a variable, not for eg. a function  call
+// not called for assignment; only for value retrieval
 void interpreter::visit(astIDENTIFIER* node){
-    varSymbol* ret_var = symbolTable->lookup(node->lexeme);
-    curr_type = ret_var->type;
+    symbol* ret_symb = symbolTable->lookup(node->lexeme);
+    curr_type = ret_symb->type;
+    curr_obj_class = ret_symb->object_class;
 
-    if(curr_type == grammarDFA::T_BOOL){
-        curr_result = get<bool>(ret_var->object);
-    }
-    else if(curr_type == grammarDFA::T_INT){
-        curr_result = get<int>(ret_var->object);
-    }
-    else if(curr_type == grammarDFA::T_FLOAT){
-        curr_result = get<float>(ret_var->object);
-    }
-    else if(curr_type == grammarDFA::T_CHAR){
-        curr_result = get<char>(ret_var->object);
+    if(curr_obj_class == grammarDFA::ARRAY){
+        curr_result = get<literal_arr_t>(ret_symb->object);
     }
     else{
-        string literal_cpy = get<string>(ret_var->object);
+        literal_t elt = get<literal_t>(ret_symb->object);
+
+        if(curr_type == grammarDFA::T_BOOL){
+            curr_result = get<bool>(elt);
+        }
+        else if(curr_type == grammarDFA::T_INT){
+            curr_result = get<int>(elt);
+        }
+        else if(curr_type == grammarDFA::T_FLOAT){
+            curr_result = get<float>(elt);
+        }
+        else if(curr_type == grammarDFA::T_CHAR){
+            curr_result = get<char>(elt);
+        }
+        else{
+            string literal_cpy = get<string>(elt);
+
+            std::size_t opening_dquotes = literal_cpy.find_first_of('\"');
+            if(opening_dquotes != string::npos){
+                literal_cpy.erase(opening_dquotes, 1);
+            }
+
+            std::size_t closing_dquotes = literal_cpy.find_last_of('\"');
+            if(closing_dquotes != string::npos){
+                literal_cpy.erase(closing_dquotes, 1);
+            }
+
+            curr_result = literal_cpy;
+        }
+    }
+}
+
+// only called when the identifier refers to an operand standing for an array element, not for eg. a function  call
+// not called for assignment; only for value retrieval
+void interpreter::visit(astELEMENT* node){
+    string arr_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
+    symbol* ret_symb = symbolTable->lookup(arr_ident);
+
+    (node->index)->accept(this);
+    int index = get<int>(get<literal_t>(curr_result));
+    int size = ((arrSymbol*) ret_symb)->size;
+
+    if(size <= index || index < 0){
+        std::cerr << "ln " << node->line << ": index " << index << " is out of bounds of array " << arr_ident <<
+        " with size " << size << std::endl;
+        throw std::runtime_error("Runtime errors encountered, see trace above.");
+    }
+
+    curr_type = ret_symb->type;
+    curr_obj_class = grammarDFA::SINGLETON;
+
+    literal_t elt = get<literal_arr_t>(ret_symb->object)->at(index);
+    if(curr_type == grammarDFA::T_BOOL){
+        curr_result = get<bool>(elt);
+    }
+    else if(curr_type == grammarDFA::T_INT){
+        curr_result = get<int>(elt);
+    }
+    else if(curr_type == grammarDFA::T_FLOAT){
+        curr_result = get<float>(elt);
+    }
+    else if(curr_type == grammarDFA::T_CHAR){
+        curr_result = get<char>(elt);
+    }
+    else{
+        string literal_cpy = get<string>(elt);
 
         std::size_t opening_dquotes = literal_cpy.find_first_of('\"');
         if(opening_dquotes != string::npos){
@@ -123,189 +182,275 @@ void interpreter::visit(astIDENTIFIER* node){
     }
 }
 
-void interpreter::visit(astMULTOP* node){
-    node->operand1->accept(this);
-    literal_t op1_value = curr_result;
+literal_t interpreter::multop(string op, int line, literal_t lit1, literal_t lit2){
+    literal_t result;
 
-    node->operand2->accept(this);
-    literal_t op2_value = curr_result;
-
-    if(node->op == "*"){
+    if(op == "*"){
         if(curr_type == grammarDFA::T_INT){
-            curr_result = get<int>(op1_value) * get<int>(op2_value);
+            result = get<int>(lit1) * get<int>(lit2);
         }
         else{
-            curr_result = get<float>(op1_value) * get<float>(op2_value);
+            result = get<float>(lit1) * get<float>(lit2);
         }
     }
-    else if(node->op == "/"){
+    else if(op == "/"){
         if(curr_type == grammarDFA::T_INT){
-            if(get<int>(op2_value) == 0){
-                std::cerr << "ln " << node->line << ": division by zero encountered" << std::endl;
+            if(get<int>(lit2) == 0){
+                std::cerr << "ln " << line << ": division by zero encountered" << std::endl;
                 throw std::runtime_error("Runtime errors encountered, see trace above.");
             }
 
-            curr_result = get<int>(op1_value) / get<int>(op2_value);
+            result = get<int>(lit1) / get<int>(lit2);
         }
         else{
-            if(get<float>(op2_value) == 0){
-                std::cerr << "ln " << node->line << ": division by zero encountered" << std::endl;
+            if(get<float>(lit2) == 0){
+                std::cerr << "ln " << line << ": division by zero encountered" << std::endl;
                 throw std::runtime_error("Runtime errors encountered, see trace above.");
             }
 
-            curr_result = get<float>(op1_value) / get<float>(op2_value);
+            result = get<float>(lit1) / get<float>(lit2);
         }
     }
     else{
-        curr_result = get<bool>(op1_value) && get<bool>(op2_value);
+        result = get<bool>(lit1) && get<bool>(lit2);
     }
+
+    return result;
+}
+
+void interpreter::visit(astMULTOP* node){
+    node->operand1->accept(this);
+    obj_t op1_value = curr_result;
+
+    node->operand2->accept(this);
+    obj_t op2_value = curr_result;
+
+    if(curr_obj_class == grammarDFA::ARRAY){
+        literal_arr_t arr1 = get<literal_arr_t>(op1_value);
+        int size1 = arr1->size();
+
+        literal_arr_t arr2 = get<literal_arr_t>(op2_value);
+        int size2 = arr2->size();
+
+        if(size1 != size2){
+            std::cerr << "ln " << node->line << ": arrays have mismatched sizes " << size1 << " and " << size2 << std::endl;
+            throw std::runtime_error("Runtime errors encountered, see trace above.");
+        }
+
+        auto* result = new vector<literal_t>(size1);
+        for(int i = 0; i < size1; i++){
+            result->push_back(multop(node->op, node->line, arr1->at(i), arr2->at(i)));
+        }
+
+        curr_result = result;
+    }else{
+        curr_result = multop(node->op, node->line, get<literal_t>(op1_value), get<literal_t>(op2_value));
+    }
+}
+
+literal_t interpreter::addop(string op, literal_t lit1, literal_t lit2){
+    literal_t result;
+
+    if(op == "+"){
+        if(curr_type == grammarDFA::T_INT){
+            result = get<int>(lit1) + get<int>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_FLOAT){
+            result = get<float>(lit1) + get<float>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_CHAR){
+            result = (char) (get<char>(lit1) + get<char>(lit2));
+        }
+        else{
+            result = get<string>(lit1) + get<string>(lit2);
+        }
+    }
+    else if(op == "-"){
+        if(curr_type == grammarDFA::T_INT){
+            result = get<int>(lit1) - get<int>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_FLOAT){
+            result = get<float>(lit1) - get<float>(lit2);
+        }
+        else{
+            result = (char) (get<char>(lit1) - get<char>(lit2));
+        }
+    }
+    else{
+        result = get<bool>(lit1) || get<bool>(lit2);
+    }
+
+    return result;
 }
 
 void interpreter::visit(astADDOP* node){
     node->operand1->accept(this);
-    literal_t op1_value = curr_result;
+    obj_t op1_value = curr_result;
 
     node->operand2->accept(this);
-    literal_t op2_value = curr_result;
+    obj_t op2_value = curr_result;
 
-    if(node->op == "+"){
-        if(curr_type == grammarDFA::T_INT){
-            curr_result = get<int>(op1_value) + get<int>(op2_value);
+    if(curr_obj_class == grammarDFA::ARRAY){
+        literal_arr_t arr1 = get<literal_arr_t>(op1_value);
+        int size1 = arr1->size();
+
+        literal_arr_t arr2 = get<literal_arr_t>(op2_value);
+        int size2 = arr2->size();
+
+        if(size1 != size2){
+            std::cerr << "ln " << node->line << ": arrays have mismatched sizes " << size1 << " and " << size2 << std::endl;
+            throw std::runtime_error("Runtime errors encountered, see trace above.");
+        }
+
+        auto* result = new vector<literal_t>(size1);
+        for(int i = 0; i < size1; i++){
+            result->push_back(addop(node->op, arr1->at(i), arr2->at(i)));
+        }
+
+        curr_result = result;
+    }
+    else{
+        curr_result = addop(node->op, get<literal_t>(op1_value), get<literal_t>(op2_value));
+    }
+}
+
+literal_t interpreter::relop(string op, literal_t lit1, literal_t lit2){
+    literal_t result;
+
+    if(op == "=="){
+        if(curr_type == grammarDFA::T_BOOL){
+            result = get<bool>(lit1) == get<bool>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_INT){
+            result = get<int>(lit1) == get<int>(lit2);
         }
         else if(curr_type == grammarDFA::T_FLOAT){
-            curr_result = get<float>(op1_value) + get<float>(op2_value);
+            result = get<float>(lit1) == get<float>(lit2);
         }
         else if(curr_type == grammarDFA::T_CHAR){
-            curr_result = (char) (get<char>(op1_value) + get<char>(op2_value));
+            result = get<char>(lit1) == get<char>(lit2);
         }
         else{
-            curr_result = get<string>(op1_value) + get<string>(op2_value);
+            result = get<string>(lit1) == get<string>(lit2);
         }
     }
-    else if(node->op == "-"){
-        if(curr_type == grammarDFA::T_INT){
-            curr_result = get<int>(op1_value) - get<int>(op2_value);
+    else if(op == "!="){
+        if(curr_type == grammarDFA::T_BOOL){
+            result = get<bool>(lit1) != get<bool>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_INT){
+            result = get<int>(lit1) != get<int>(lit2);
         }
         else if(curr_type == grammarDFA::T_FLOAT){
-            curr_result = get<float>(op1_value) - get<float>(op2_value);
+            result = get<float>(lit1) != get<float>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_CHAR){
+            result = get<char>(lit1) != get<char>(lit2);
         }
         else{
-            curr_result = (char) (get<char>(op1_value) - get<char>(op2_value));
+            result = get<string>(lit1) != get<string>(lit2);
+        }
+    }
+    else if(op == "<="){
+        if(curr_type == grammarDFA::T_BOOL){
+            result = get<bool>(lit1) <= get<bool>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_INT){
+            result = get<int>(lit1) <= get<int>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_FLOAT){
+            result = get<float>(lit1) <= get<float>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_CHAR){
+            result = get<char>(lit1) <= get<char>(lit2);
+        }
+        else{
+            result = get<string>(lit1) <= get<string>(lit2);
+        }
+    }
+    else if(op == ">="){
+        if(curr_type == grammarDFA::T_BOOL){
+            result = get<bool>(lit1) >= get<bool>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_INT){
+            result = get<int>(lit1) >= get<int>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_FLOAT){
+            result = get<float>(lit1) >= get<float>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_CHAR){
+            result = get<char>(lit1) >= get<char>(lit2);
+        }
+        else{
+            result = get<string>(lit1) >= get<string>(lit2);
+        }
+    }
+    else if(op == "<"){
+        if(curr_type == grammarDFA::T_BOOL){
+            result = get<bool>(lit1) < get<bool>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_INT){
+            result = get<int>(lit1) < get<int>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_FLOAT){
+            result = get<float>(lit1) < get<float>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_CHAR){
+            result = get<char>(lit1) < get<char>(lit2);
+        }
+        else{
+            result = get<string>(lit1) < get<string>(lit2);
         }
     }
     else{
-        curr_result = get<bool>(op1_value) || get<bool>(op2_value);
+        if(curr_type == grammarDFA::T_BOOL){
+            result = get<bool>(lit1) > get<bool>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_INT){
+            result = get<int>(lit1) > get<int>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_FLOAT){
+            result = get<float>(lit1) > get<float>(lit2);
+        }
+        else if(curr_type == grammarDFA::T_CHAR){
+            result = get<char>(lit1) > get<char>(lit2);
+        }
+        else{
+            result = get<string>(lit1) > get<string>(lit2);
+        }
     }
+
+    return result;
 }
 
 void interpreter::visit(astRELOP* node){
     node->operand1->accept(this);
-    literal_t op1_value = curr_result;
+    obj_t op1_value = curr_result;
 
     node->operand2->accept(this);
-    literal_t op2_value = curr_result;
+    obj_t op2_value = curr_result;
 
-    if(node->op == "=="){
-        if(curr_type == grammarDFA::T_BOOL){
-            curr_result = get<bool>(op1_value) == get<bool>(op2_value);
+    if(curr_obj_class == grammarDFA::ARRAY){
+        literal_arr_t arr1 = get<literal_arr_t>(op1_value);
+        int size1 = arr1->size();
+
+        literal_arr_t arr2 = get<literal_arr_t>(op2_value);
+        int size2 = arr2->size();
+
+        if(size1 != size2){
+            std::cerr << "ln " << node->line << ": arrays have mismatched sizes " << size1 << " and " << size2 << std::endl;
+            throw std::runtime_error("Runtime errors encountered, see trace above.");
         }
-        else if(curr_type == grammarDFA::T_INT){
-            curr_result = get<int>(op1_value) == get<int>(op2_value);
+
+        auto* result = new vector<literal_t>(size1);
+        for(int i = 0; i < size1; i++){
+            result->push_back(relop(node->op, arr1->at(i), arr2->at(i)));
         }
-        else if(curr_type == grammarDFA::T_FLOAT){
-            curr_result = get<float>(op1_value) == get<float>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_CHAR){
-            curr_result = get<char>(op1_value) == get<char>(op2_value);
-        }
-        else{
-            curr_result = get<string>(op1_value) == get<string>(op2_value);
-        }
-    }
-    else if(node->op == "!="){
-        if(curr_type == grammarDFA::T_BOOL){
-            curr_result = get<bool>(op1_value) != get<bool>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_INT){
-            curr_result = get<int>(op1_value) != get<int>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_FLOAT){
-            curr_result = get<float>(op1_value) != get<float>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_CHAR){
-            curr_result = get<char>(op1_value) != get<char>(op2_value);
-        }
-        else{
-            curr_result = get<string>(op1_value) != get<string>(op2_value);
-        }
-    }
-    else if(node->op == "<="){
-        if(curr_type == grammarDFA::T_BOOL){
-            curr_result = get<bool>(op1_value) <= get<bool>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_INT){
-            curr_result = get<int>(op1_value) <= get<int>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_FLOAT){
-            curr_result = get<float>(op1_value) <= get<float>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_CHAR){
-            curr_result = get<char>(op1_value) <= get<char>(op2_value);
-        }
-        else{
-            curr_result = get<string>(op1_value) <= get<string>(op2_value);
-        }
-    }
-    else if(node->op == ">="){
-        if(curr_type == grammarDFA::T_BOOL){
-            curr_result = get<bool>(op1_value) >= get<bool>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_INT){
-            curr_result = get<int>(op1_value) >= get<int>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_FLOAT){
-            curr_result = get<float>(op1_value) >= get<float>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_CHAR){
-            curr_result = get<char>(op1_value) >= get<char>(op2_value);
-        }
-        else{
-            curr_result = get<string>(op1_value) >= get<string>(op2_value);
-        }
-    }
-    else if(node->op == "<"){
-        if(curr_type == grammarDFA::T_BOOL){
-            curr_result = get<bool>(op1_value) < get<bool>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_INT){
-            curr_result = get<int>(op1_value) < get<int>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_FLOAT){
-            curr_result = get<float>(op1_value) < get<float>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_CHAR){
-            curr_result = get<char>(op1_value) < get<char>(op2_value);
-        }
-        else{
-            curr_result = get<string>(op1_value) < get<string>(op2_value);
-        }
+
+        curr_result = result;
     }
     else{
-        if(curr_type == grammarDFA::T_BOOL){
-            curr_result = get<bool>(op1_value) > get<bool>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_INT){
-            curr_result = get<int>(op1_value) > get<int>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_FLOAT){
-            curr_result = get<float>(op1_value) > get<float>(op2_value);
-        }
-        else if(curr_type == grammarDFA::T_CHAR){
-            curr_result = get<char>(op1_value) > get<char>(op2_value);
-        }
-        else{
-            curr_result = get<string>(op1_value) > get<string>(op2_value);
-        }
+        curr_result = relop(node->op, get<literal_t>(op1_value), get<literal_t>(op2_value));
     }
 
     curr_type = grammarDFA::T_BOOL;
@@ -314,16 +459,24 @@ void interpreter::visit(astRELOP* node){
 void interpreter::visit(astAPARAMS* node){
     for(size_t i = 0; i < node->n_children; i++){
         (node->children->at(i))->accept(this);
-        auto* var = new varSymbol(nullptr, curr_type);
-        var->set_object(curr_result);
+        symbol* aparam;
 
-        (functionStack->top().first)->fparams->push_back(var);
+        if(curr_obj_class == grammarDFA::SINGLETON){
+            aparam = new varSymbol(nullptr, curr_type);
+            aparam->set_object(curr_result);
+        }
+        else{
+            aparam = new arrSymbol(nullptr, curr_type, get<literal_arr_t>(curr_result)->size());
+            aparam->set_object(curr_result);
+        }
+
+        (functionStack->top().first)->fparams->push_back(aparam);
     }
 }
 
 void interpreter::visit(astFUNC_CALL* node){
     string func_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
-    auto* expected_func = new funcSymbol(&func_ident, grammarDFA::T_TYPE, new vector<varSymbol*>(0));
+    auto* expected_func = new funcSymbol(&func_ident, grammarDFA::T_TYPE, grammarDFA::FUNCTION, new vector<symbol*>(0));
 
     if(node->aparams != nullptr){
         functionStack->push(make_pair(expected_func, false));
@@ -336,11 +489,21 @@ void interpreter::visit(astFUNC_CALL* node){
     symbolTable->push_scope();
 
     for(size_t i = 0; i < (functionStack->top().first)->fparams->size(); i++){
-        auto* var = new varSymbol(&(functionStack->top().first)->fparams->at(i)->identifier,
-                                   (functionStack->top().first)->fparams->at(i)->type);
-        var->set_object(expected_func->fparams->at(i)->object);
+        symbol* aparam;
+        grammarDFA::Symbol obj_class = (functionStack->top().first)->fparams->at(i)->object_class;
 
-        symbolTable->insert(var);
+        if(obj_class == grammarDFA::SINGLETON){
+            aparam = new varSymbol(&(functionStack->top().first)->fparams->at(i)->identifier,
+                                   (functionStack->top().first)->fparams->at(i)->type);
+        }
+        else{
+            aparam = new arrSymbol(&(functionStack->top().first)->fparams->at(i)->identifier,
+                                   (functionStack->top().first)->fparams->at(i)->type,
+                                   ((arrSymbol*) expected_func->fparams->at(i))->size);
+        }
+
+        aparam->set_object(expected_func->fparams->at(i)->object);
+        symbolTable->insert(aparam);
     }
 
     delete expected_func;
@@ -354,6 +517,7 @@ void interpreter::visit(astFUNC_CALL* node){
     }
 
     curr_type = (functionStack->top().first)->type;
+    curr_obj_class = (functionStack->top().first)->ret_obj_class;
     (functionStack->top().first)->set_object(curr_result);
 
     functionStack->pop();
@@ -364,28 +528,79 @@ void interpreter::visit(astSUBEXPR* node){
     node->subexpr->accept(this);
 }
 
-void interpreter::visit(astUNARY* node){
-    node->operand->accept(this);
-    literal_t op1_value = curr_result;
+literal_t interpreter::unary(string op, literal_t literal){
+    literal_t result;
 
-    if(node->op == "-"){
+    if(op == "-"){
         if(curr_type == grammarDFA::T_INT){
-            curr_result = -1 * get<int>(op1_value);
+            result = -1 * get<int>(literal);
         }
         else if(curr_type == grammarDFA::T_FLOAT){
-            curr_result =  -1 * get<float>(op1_value);
+            result =  -1 * get<float>(literal);
         }
     }
     else{
-        curr_result = !get<bool>(op1_value);
+        result = !get<bool>(literal);
+    }
+
+    return result;
+}
+
+void interpreter::visit(astUNARY* node){
+    node->operand->accept(this);
+    obj_t op1_value = curr_result;
+
+    if(curr_obj_class == grammarDFA::ARRAY){
+        literal_arr_t arr1 = get<literal_arr_t>(op1_value);
+        int size1 = arr1->size();
+
+        auto* result = new vector<literal_t>(size1);
+        for(int i = 0; i < size1; i++){
+            result->push_back(unary(node->op, arr1->at(i)));
+        }
+
+        curr_result = result;
+    }
+    else{
+        curr_result = unary(node->op, get<literal_t>(op1_value));
     }
 }
 
-void interpreter::visit(astASSIGNMENT* node){
-    varSymbol* ret_var = symbolTable->lookup(((astIDENTIFIER* )node->identifier)->lexeme);
+void interpreter::visit(astASSIGNMENT_IDENTIFIER* node){
+    symbol* ret_symb = symbolTable->lookup(((astIDENTIFIER* )node->identifier)->lexeme);
 
     node->expression->accept(this);
-    ret_var->set_object(curr_result);
+
+    if(curr_obj_class == grammarDFA::ARRAY && get<literal_arr_t>(curr_result)->size() != ((arrSymbol*) ret_symb)->size){
+        std::cerr << "ln " << node->line << ": arrays have mismatched sizes " << get<literal_arr_t>(curr_result)->size()
+        << " and " << ((arrSymbol*) ret_symb)->size << std::endl;
+        throw std::runtime_error("Runtime errors encountered, see trace above.");
+    }
+
+    ret_symb->set_object(curr_result);
+}
+
+void interpreter::visit(astASSIGNMENT_ELEMENT* node){
+    string arr_ident = ((astIDENTIFIER*) ((astELEMENT*) node->element)->identifier)->lexeme;
+    symbol* ret_symb = symbolTable->lookup(arr_ident);
+
+    (((astELEMENT*) node->element)->index)->accept(this);
+    int index = get<int>(get<literal_t>(curr_result));
+    int size = ((arrSymbol*) ret_symb)->size;
+
+    if(size <= index || index < 0){
+        std::cerr << "ln " << node->line << ": index " << index << " is out of bounds of array " << arr_ident <<
+        " with size " << size << std::endl;
+        throw std::runtime_error("Runtime errors encountered, see trace above.");
+    }
+
+    node->expression->accept(this);
+
+    if(ret_symb->type == grammarDFA::T_AUTO){
+        ret_symb->type = curr_type;
+    }
+
+    get<literal_arr_t>(ret_symb->object)->at(index) = get<literal_t>(curr_result);
 }
 
 void interpreter::visit(astVAR_DECL* node){
@@ -403,23 +618,116 @@ void interpreter::visit(astVAR_DECL* node){
     symbolTable->insert(var);
 }
 
+literal_t interpreter::default_literal(grammarDFA::Symbol type){
+    literal_t result;
+
+    if(curr_type == grammarDFA::T_BOOL){
+        result = false;
+    }
+    else if(curr_type == grammarDFA::T_INT){
+        result = 0;
+    }
+    else if(curr_type == grammarDFA::T_FLOAT){
+        result = (float) 0.0;
+    }
+    else if(curr_type == grammarDFA::T_CHAR){
+        result = '\0';
+    }
+    else{
+        result = "";
+    }
+
+    return result;
+}
+
+void interpreter::visit(astARR_DECL* node){
+    string arr_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
+    grammarDFA::Symbol arr_type = ((astTYPE*) node->type)->type;
+
+    node->size->accept(this);
+    int size = get<int>(get<literal_t>(curr_result));
+
+    if(size < 1){
+        std::cerr << "ln " << node->line << ": size of array " << arr_ident << " must be a positive integer" << std::endl;
+        throw std::runtime_error("Runtime errors encountered, see trace above.");
+    }
+
+    int n_assignment_elts = node->n_children - 3;
+    if(size < n_assignment_elts){
+        std::cerr << "ln " << node->line << ": cannot assign " << n_assignment_elts << " to array " << arr_ident <<
+        " of size " << size << std::endl;
+        throw std::runtime_error("Runtime errors encountered, see trace above.");
+    }
+
+    literal_arr_t lit_arr = new vector<literal_t>(size);
+
+    for(int i = 0; i < n_assignment_elts; i++){
+        (node->children->at(i+3))->accept(this);
+
+        if(arr_type == grammarDFA::T_AUTO){
+            arr_type = curr_type;
+        }
+
+        lit_arr->at(i) = get<literal_t>(curr_result);
+    }
+
+    if(arr_type != grammarDFA::T_AUTO){
+        literal_t default_lit_val = default_literal(arr_type);
+
+        for(int i = n_assignment_elts; i < size; i++){
+            lit_arr->at(i) = default_lit_val;
+        }
+    }
+
+    auto* arr = new arrSymbol(&arr_ident, arr_type, size);
+    arr->set_object(lit_arr);
+
+    symbolTable->insert(arr);
+}
+
 void interpreter::visit(astPRINT* node){
     node->expression->accept(this);
 
-    if(curr_type == grammarDFA::T_BOOL){
-        std::cout << get<bool>(curr_result) << std::endl;
+    if(curr_obj_class == grammarDFA::ARRAY){
+        std::cout << "{";
+        for(int i = 0; i < get<literal_arr_t>(curr_result)->size(); i++){
+            if(i != 0){
+                std::cout << ", ";
+            }
+
+            if(curr_type == grammarDFA::T_BOOL){
+               std::cout << get<bool>(get<literal_arr_t>(curr_result)->at(i));
+            }
+            else if(curr_type == grammarDFA::T_INT){
+                std::cout << get<int>(get<literal_arr_t>(curr_result)->at(i));
+            }
+            else if(curr_type == grammarDFA::T_FLOAT){
+                std::cout << get<float>(get<literal_arr_t>(curr_result)->at(i));
+            }
+            else if(curr_type == grammarDFA::T_CHAR){
+                std::cout << get<char>(get<literal_arr_t>(curr_result)->at(i));
+            }
+            else{
+                std::cout << get<string>(get<literal_arr_t>(curr_result)->at(i));
+            }
+        }
+
+        std::cout << "}" << std::endl;
+    }
+    else if(curr_type == grammarDFA::T_BOOL){
+        std::cout << get<bool>(get<literal_t>(curr_result)) << std::endl;
     }
     else if(curr_type == grammarDFA::T_INT){
-        std::cout << get<int>(curr_result) << std::endl;
+        std::cout << get<int>(get<literal_t>(curr_result)) << std::endl;
     }
     else if(curr_type == grammarDFA::T_FLOAT){
-        std::cout << get<float>(curr_result) << std::endl;
+        std::cout << get<float>(get<literal_t>(curr_result)) << std::endl;
     }
     else if(curr_type == grammarDFA::T_CHAR){
-        std::cout << get<char>(curr_result) << std::endl;
+        std::cout << get<char>(get<literal_t>(curr_result)) << std::endl;
     }
     else{
-        std::cout << get<string>(curr_result) << std::endl;
+        std::cout << get<string>(get<literal_t>(curr_result)) << std::endl;
     }
 }
 
@@ -429,13 +737,14 @@ void interpreter::visit(astRETURN* node){
 
     if(functionStack->top().first->type == grammarDFA::T_AUTO){
         functionStack->top().first->type = curr_type;
+        functionStack->top().first->ret_obj_class = curr_obj_class;
     }
 }
 
 void interpreter::visit(astIF* node){
     node->expression->accept(this);
 
-    if(get<bool>(curr_result)){
+    if(get<bool>(get<literal_t>(curr_result))){
         node->if_block->accept(this);
     }
     else if(node->else_block != nullptr){
@@ -451,7 +760,7 @@ void interpreter::visit(astFOR* node){
     while(true){
         node->expression->accept(this);
 
-        if(get<bool>(curr_result)){
+        if(get<bool>(get<literal_t>(curr_result))){
             node->for_block->accept(this);
 
             if(functionStack->empty() || !functionStack->top().second){
@@ -473,7 +782,7 @@ void interpreter::visit(astWHILE* node){
     while(true){
         node->expression->accept(this);
 
-        if(get<bool>(curr_result)){
+        if(get<bool>(get<literal_t>(curr_result))){
             if(node->while_block != nullptr){ node->while_block->accept(this);}
 
             if(!functionStack->empty() && functionStack->top().second){
@@ -492,17 +801,24 @@ void interpreter::visit(astFPARAM* node){}
 void interpreter::visit(astFUNC_DECL* node){
     string func_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
     grammarDFA::Symbol ret_type = ((astTYPE*) node->type)->type;
+    grammarDFA::Symbol ret_obj_class = ((astTYPE*) node->type)->object_class;
 
-    auto* fparams = new vector<varSymbol*>(0);
+    auto* fparams = new vector<symbol*>(0);
     if(node->fparams != nullptr){
         for(auto &c : *((astFPARAMS*) node->fparams)->children){
-            string var_ident = ((astIDENTIFIER*) ((astFPARAM*) c)->children->at(0))->lexeme;
-            grammarDFA::Symbol var_type = ((astTYPE*) ((astFPARAM*) c)->children->at(1))->type;
-            fparams->push_back(new varSymbol(&var_ident, var_type));
+            string fparam_ident = ((astIDENTIFIER*) ((astFPARAM*) c)->children->at(0))->lexeme;
+            grammarDFA::Symbol fparam_type = ((astTYPE*) ((astFPARAM*) c)->children->at(1))->type;
+            grammarDFA::Symbol fparam_obj_class = ((astTYPE*) ((astFPARAM*) c)->children->at(1))->object_class;
+
+            if(fparam_obj_class == grammarDFA::ARRAY){
+                fparams->push_back(new arrSymbol(&fparam_ident, fparam_type, 0));
+            }else{
+                fparams->push_back(new varSymbol(&fparam_ident, fparam_type));
+            }
         }
     }
 
-    auto* func = new funcSymbol(&func_ident, ret_type, fparams);
+    auto* func = new funcSymbol(&func_ident, ret_type, ret_obj_class, fparams);
     func->set_func_ref((astBLOCK*) node->function_block);
 
     symbolTable->insert(func);
