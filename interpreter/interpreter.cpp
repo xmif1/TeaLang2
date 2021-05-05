@@ -237,7 +237,7 @@ void interpreter::visit(astMULTOP* node){
             throw std::runtime_error("Runtime errors encountered, see trace above.");
         }
 
-        auto* result = new vector<literal_t>(size1);
+        auto* result = new vector<literal_t>(0);
         for(int i = 0; i < size1; i++){
             result->push_back(multop(node->op, node->line, arr1->at(i), arr2->at(i)));
         }
@@ -302,7 +302,7 @@ void interpreter::visit(astADDOP* node){
             throw std::runtime_error("Runtime errors encountered, see trace above.");
         }
 
-        auto* result = new vector<literal_t>(size1);
+        auto* result = new vector<literal_t>(0);
         for(int i = 0; i < size1; i++){
             result->push_back(addop(node->op, arr1->at(i), arr2->at(i)));
         }
@@ -442,7 +442,7 @@ void interpreter::visit(astRELOP* node){
             throw std::runtime_error("Runtime errors encountered, see trace above.");
         }
 
-        auto* result = new vector<literal_t>(size1);
+        auto* result = new vector<literal_t>(0);
         for(int i = 0; i < size1; i++){
             result->push_back(relop(node->op, arr1->at(i), arr2->at(i)));
         }
@@ -554,7 +554,7 @@ void interpreter::visit(astUNARY* node){
         literal_arr_t arr1 = get<literal_arr_t>(op1_value);
         int size1 = arr1->size();
 
-        auto* result = new vector<literal_t>(size1);
+        auto* result = new vector<literal_t>(0);
         for(int i = 0; i < size1; i++){
             result->push_back(unary(node->op, arr1->at(i)));
         }
@@ -660,22 +660,26 @@ void interpreter::visit(astARR_DECL* node){
     }
 
     literal_arr_t lit_arr = new vector<literal_t>(size);
-
-    for(int i = 0; i < n_assignment_elts; i++){
-        (node->children->at(i+3))->accept(this);
-
-        if(arr_type == grammarDFA::T_AUTO){
-            arr_type = curr_type;
-        }
-
-        lit_arr->at(i) = get<literal_t>(curr_result);
-    }
-
-    if(arr_type != grammarDFA::T_AUTO){
+    if(arr_type != grammarDFA::T_AUTO && n_assignment_elts == 0){
         literal_t default_lit_val = default_literal(arr_type);
 
-        for(int i = n_assignment_elts; i < size; i++){
+        for(int i = 0; i < size; i++){
             lit_arr->at(i) = default_lit_val;
+        }
+    }
+    else{
+        for(int i = 0; i < n_assignment_elts; i++){
+            (node->children->at(i+3))->accept(this);
+
+            if(arr_type == grammarDFA::T_AUTO){
+                arr_type = curr_type;
+            }
+
+            lit_arr->at(i) = get<literal_t>(curr_result);
+        }
+
+        for(int i = n_assignment_elts; i < size; i++){
+            lit_arr->at(i) = get<literal_t>(curr_result);
         }
     }
 
@@ -696,7 +700,12 @@ void interpreter::visit(astPRINT* node){
             }
 
             if(curr_type == grammarDFA::T_BOOL){
-               std::cout << get<bool>(get<literal_arr_t>(curr_result)->at(i));
+                if(get<bool>(get<literal_arr_t>(curr_result)->at(i))){
+                    std::cout << "true";
+                }
+                else{
+                    std::cout << "false";
+                }
             }
             else if(curr_type == grammarDFA::T_INT){
                 std::cout << get<int>(get<literal_arr_t>(curr_result)->at(i));
@@ -715,7 +724,12 @@ void interpreter::visit(astPRINT* node){
         std::cout << "}" << std::endl;
     }
     else if(curr_type == grammarDFA::T_BOOL){
-        std::cout << get<bool>(get<literal_t>(curr_result)) << std::endl;
+        if(get<bool>(get<literal_t>(curr_result))){
+            std::cout << "true" << std::endl;
+        }
+        else{
+            std::cout << "false" << std::endl;
+        }
     }
     else if(curr_type == grammarDFA::T_INT){
         std::cout << get<int>(get<literal_t>(curr_result)) << std::endl;
