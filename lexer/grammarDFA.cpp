@@ -45,6 +45,9 @@ grammarDFA::Symbol grammarDFA::state_tok(State state, string* lexeme){
         else if(*lexeme == "while"){
             return T_WHILE;
         }
+        else if(*lexeme == "tlstruct"){
+            return T_TLSTRUCT;
+        }
         else{
             return symbol;
         }

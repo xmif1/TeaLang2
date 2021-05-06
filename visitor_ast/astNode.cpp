@@ -113,6 +113,12 @@ void astASSIGNMENT_ELEMENT::accept(visitor* v){
     v->visit(this);
 }
 
+void astASSIGNMENT_MEMBER_ACCESS::accept(visitor* v){
+    member_acc = children->at(0);
+    expression = children->at(1);
+    v->visit(this);
+}
+
 void astVAR_DECL::accept(visitor* v){
     identifier = children->at(0);
     type = children->at(1);
@@ -124,6 +130,12 @@ void astARR_DECL::accept(visitor* v){
     identifier = children->at(0);
     size = children->at(1);
     type = children->at(2);
+    v->visit(this);
+}
+
+void astTLS_DECL::accept(visitor* v){
+    identifier = children->at(0);
+    tls_block = children->at(1);
     v->visit(this);
 }
 
@@ -173,6 +185,10 @@ void astFUNC_DECL::accept(visitor* v){
     identifier = children->at(1);
     fparams = children->at(2);
     function_block = children->at(3);
+    v->visit(this);
+}
+
+void astMEMBER_ACCESS::accept(visitor* v){
     v->visit(this);
 }
 

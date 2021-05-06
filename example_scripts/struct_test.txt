@@ -1,0 +1,53 @@
+tlstruct Vector{
+    let x:float = 0.0;
+    let y:float = 0.0;
+    let z:float = 0.0;
+
+    int Scale(s:float){
+        x = x*s;
+        y = y*s;
+        z = z*s;
+
+        return 0;
+    }
+
+    int Translate(tx:float, ty:float, tz:float){
+        x = x + tx;
+        y = y + ty;
+        z = z + tz;
+
+        return 0;
+    }
+}
+
+Vector Add(v1:Vector, v2:Vector){
+    let v3:Vector;
+
+    v3.x = v1.x + v2.x;
+    v3.y = v1.y + v2.y;
+    v3.z = v1.z + v2.z;
+
+    return v3;
+}
+
+let v1:Vector;
+v1.x = 1.0;
+v1.y = 2.0;
+v1.z = 3.0;
+
+let v2:Vector;
+v2.x = 2.0;
+v2.y = 1.2;
+v2.z = 0.0;
+
+let v3:Vector = Add(v1, v2);
+print v3.x; // 3.0
+print v3.y; // 3.2
+print v3.z; // 2.0
+
+v3.Translate(1.0, 1.0, 1.0);
+
+let v4:Vector = Add(v1, v3);
+print v4.x; // 5.0
+print v4.y; // 6.2
+print v4.z; // 5.0

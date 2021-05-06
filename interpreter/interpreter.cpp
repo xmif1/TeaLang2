@@ -603,21 +603,6 @@ void interpreter::visit(astASSIGNMENT_ELEMENT* node){
     get<literal_arr_t>(ret_symb->object)->at(index) = get<literal_t>(curr_result);
 }
 
-void interpreter::visit(astVAR_DECL* node){
-    node->expression->accept(this);
-
-    string var_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
-    grammarDFA::Symbol var_type = ((astTYPE*) node->type)->type;
-    if(var_type == grammarDFA::T_AUTO){
-        var_type = curr_type;
-    }
-
-    auto* var = new varSymbol(&var_ident, var_type);
-    var->set_object(curr_result);
-
-    symbolTable->insert(var);
-}
-
 literal_t interpreter::default_literal(grammarDFA::Symbol type){
     literal_t result;
 
@@ -638,6 +623,29 @@ literal_t interpreter::default_literal(grammarDFA::Symbol type){
     }
 
     return result;
+}
+
+void interpreter::visit(astVAR_DECL* node){
+    string var_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
+    grammarDFA::Symbol var_type = ((astTYPE*) node->type)->type;
+    varSymbol* var;
+
+    if(node->expression != nullptr){
+        node->expression->accept(this);
+
+        if(var_type == grammarDFA::T_AUTO){
+            var_type = curr_type;
+        }
+
+        var = new varSymbol(&var_ident, var_type);
+        var->set_object(curr_result);
+    }
+    else{
+        var = new varSymbol(&var_ident, var_type);
+        var->set_object(default_literal(var_type));
+    }
+
+    symbolTable->insert(var);
 }
 
 void interpreter::visit(astARR_DECL* node){

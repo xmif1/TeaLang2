@@ -217,6 +217,18 @@ public:
     void accept(visitor* v) override;
 };
 
+class astASSIGNMENT_MEMBER_ACCESS: public astInnerNode{
+public:
+    astNode* member_acc;
+    astNode* expression;
+
+    explicit astASSIGNMENT_MEMBER_ACCESS(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "ASSIGNMENT", line){
+        children->resize(2, nullptr);
+    }
+
+    void accept(visitor* v) override;
+};
+
 class astVAR_DECL: public astInnerNode{
 public:
     astNode* identifier;
@@ -238,6 +250,18 @@ public:
 
     explicit astARR_DECL(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "ARR_DECL", line){
         children->resize(3, nullptr);
+    }
+
+    void accept(visitor* v) override;
+};
+
+class astTLS_DECL: public astInnerNode{
+public:
+    astNode* identifier;
+    astNode* tls_block;
+
+    explicit astTLS_DECL(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "TLS_DECL", line){
+        children->resize(2, nullptr);
     }
 
     void accept(visitor* v) override;
@@ -333,6 +357,13 @@ public:
     explicit astFUNC_DECL(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "FUNC_DECL", line){
         children->resize(4, nullptr);
     }
+
+    void accept(visitor* v) override;
+};
+
+class astMEMBER_ACCESS: public astInnerNode{
+public:
+    explicit astMEMBER_ACCESS(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "MEMBER_ACCESS", line){}
 
     void accept(visitor* v) override;
 };
