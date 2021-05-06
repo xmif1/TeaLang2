@@ -217,12 +217,12 @@ public:
     void accept(visitor* v) override;
 };
 
-class astASSIGNMENT_MEMBER_ACCESS: public astInnerNode{
+class astASSIGNMENT_MEMBER: public astInnerNode{
 public:
     astNode* member_acc;
-    astNode* expression;
+    astNode* assignment;
 
-    explicit astASSIGNMENT_MEMBER_ACCESS(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "ASSIGNMENT", line){
+    explicit astASSIGNMENT_MEMBER(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "ASSIGNMENT", line){
         children->resize(2, nullptr);
     }
 

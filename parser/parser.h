@@ -40,7 +40,7 @@ private:
     void ruleARR_DECL_ASSIGNMENT_ext(astInnerNode*,  lexer::Token*);
     void ruleASSIGNMENT_IDENTIFIER(astInnerNode*,  lexer::Token*);
     void ruleASSIGNMENT_ELEMENT(astInnerNode*,  lexer::Token*);
-    void ruleASSIGNMENT_MEMBER_ACCESS(astInnerNode*,  lexer::Token*);
+    void ruleASSIGNMENT_MEMBER(astInnerNode *parent, lexer::Token *token_ptr);
     void rulePRINT(astInnerNode*,  lexer::Token*);
     void ruleRETURN(astInnerNode*,  lexer::Token*);
     void ruleWHILE(astInnerNode*,  lexer::Token*);

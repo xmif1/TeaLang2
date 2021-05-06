@@ -155,11 +155,11 @@ void parser::ruleASSIGNMENT_ELEMENT(astInnerNode* parent, lexer::Token* token_pt
     state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::ELEMENT});
 }
 
-void parser::ruleASSIGNMENT_MEMBER_ACCESS(astInnerNode* parent, lexer::Token* token_ptr){
-    auto* ast_assignment = new astASSIGNMENT_MEMBER_ACCESS(parent, token_ptr->line); parent->add_child(ast_assignment);
-    state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::EXPRESSION});
-    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_EQUALS});
-    state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::MEMBER_ACCESS});
+void parser::ruleASSIGNMENT_MEMBER(astInnerNode* parent, lexer::Token* token_ptr){
+    auto* ast_assignment = new astASSIGNMENT_MEMBER(parent, token_ptr->line); parent->add_child(ast_assignment);
+    state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::ASSIGNMENT});
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_PERIOD});
+    state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::IDENTIFIER});
 }
 
 void parser::rulePRINT(astInnerNode* parent, lexer::Token* token_ptr){
@@ -611,7 +611,7 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
                                                 pr = &parser::ruleASSIGNMENT_ELEMENT;
             }
             else if(peek_token.symbol == grammarDFA::T_PERIOD){
-                                                pr = &parser::ruleASSIGNMENT_MEMBER_ACCESS;
+                                                pr = &parser::ruleASSIGNMENT_MEMBER;
             }else{
                                                 pr = &parser::ruleASSIGNMENT_IDENTIFIER;
             }
@@ -737,7 +737,7 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
                                                 pr = &parser::ruleSTATEMENT_T_IDENTIFIER_AS_TYPE;
                     }
                     else if(peek_tokens[0].symbol == grammarDFA::T_PERIOD &&
-                            peek_tokens[2].symbol != grammarDFA::T_EQUALS){
+                            peek_tokens[2].symbol == grammarDFA::T_LBRACKET){
                                                 pr = &parser::ruleSTATEMENT_T_IDENTIFIER_MEMBER_ACC;
                     }else{
                                                 pr = &parser::ruleSTATEMENT_T_IDENTIFIER_ASSIGNMENT;

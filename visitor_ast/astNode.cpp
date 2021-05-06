@@ -113,9 +113,9 @@ void astASSIGNMENT_ELEMENT::accept(visitor* v){
     v->visit(this);
 }
 
-void astASSIGNMENT_MEMBER_ACCESS::accept(visitor* v){
+void astASSIGNMENT_MEMBER::accept(visitor* v){
     member_acc = children->at(0);
-    expression = children->at(1);
+    assignment = children->at(1);
     v->visit(this);
 }
 

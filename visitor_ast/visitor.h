@@ -20,7 +20,7 @@ class astSUBEXPR;
 class astUNARY;
 class astASSIGNMENT_IDENTIFIER;
 class astASSIGNMENT_ELEMENT;
-class astASSIGNMENT_MEMBER_ACCESS;
+class astASSIGNMENT_MEMBER;
 class astVAR_DECL;
 class astARR_DECL;
 class astTLS_DECL;
@@ -51,7 +51,7 @@ public:
     virtual void visit(astUNARY* ast_unary) = 0;
     virtual void visit(astASSIGNMENT_IDENTIFIER* ast_assignment) = 0;
     virtual void visit(astASSIGNMENT_ELEMENT* ast_assignment) = 0;
-    virtual void visit(astASSIGNMENT_MEMBER_ACCESS* ast_assignment) = 0;
+    virtual void visit(astASSIGNMENT_MEMBER* ast_assignment) = 0;
     virtual void visit(astVAR_DECL* ast_var_decl) = 0;
     virtual void visit(astARR_DECL* ast_arr_decl) = 0;
     virtual void visit(astTLS_DECL* ast_tls_decl) = 0;
