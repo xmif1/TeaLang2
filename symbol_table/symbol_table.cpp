@@ -39,6 +39,10 @@ funcSymbol* symbol_table::lookup(const string& identifier, vector<symbol*>* fpar
         }
     }
 
+    if(parent_symbolTable != nullptr){
+        return parent_symbolTable->lookup(identifier, fparams);
+    }
+
     return nullptr;
 }
 
@@ -52,6 +56,10 @@ symbol* symbol_table::lookup(const string& identifier){
                 return nullptr;
             }
         }
+    }
+
+    if(parent_symbolTable != nullptr){
+        return parent_symbolTable->lookup(identifier);
     }
 
     return nullptr;

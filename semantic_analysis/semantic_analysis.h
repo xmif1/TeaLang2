@@ -43,7 +43,7 @@ public:
 
 private:
     stack<pair<funcSymbol*, bool>>* functionStack = new stack<pair<funcSymbol*, bool>>; // 2nd used to check if func returns
-    symbol_table* curr_symbolTable = new symbol_table();
+    symbol_table* curr_symbolTable = new symbol_table(nullptr);
     symbol_table* lookup_symbolTable = curr_symbolTable;
 
     bool type_deduction_reqd = false;

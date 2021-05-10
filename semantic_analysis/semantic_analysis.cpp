@@ -114,7 +114,7 @@ void semantic_analysis::visit(astELEMENT* node){
 
         if(ret_symbol != nullptr){
             if(ret_symbol->object_class != grammarDFA::ARRAY){
-                std::cerr << "ln " << node->line << arr_ident << " is not an array" << std::endl;
+                std::cerr << "ln " << node->line << ": " << arr_ident << " is not an array" << std::endl;
                 type_deduction_reqd = true;
             }
             else{
@@ -437,6 +437,15 @@ void semantic_analysis::visit(astARR_DECL* node){
     string arr_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
     type_t arr_type = type_t(((astTYPE*) node->type)->type, ((astTYPE*) node->type)->lexeme);
 
+    if(arr_type.first == grammarDFA::T_TLSTRUCT){
+        symbol* ret_symbol = lookup_symbolTable->lookup(arr_type.second);
+        lookup_symbolTable = curr_symbolTable;
+
+        if(ret_symbol == nullptr){
+            std::cerr << "ln " << node->line << ": tlstruct " << arr_type.second << " has not been declared" << std::endl;
+        }
+    }
+
     if(node->size != nullptr){
         node->size->accept(this);
 
@@ -484,7 +493,7 @@ void semantic_analysis::visit(astTLS_DECL* node){
 
     auto* ref_curr_symbolTable = curr_symbolTable;
     auto* ref_lookup_symbolTable = lookup_symbolTable;
-    curr_symbolTable = new symbol_table();
+    curr_symbolTable = new symbol_table(ref_curr_symbolTable);
     lookup_symbolTable = curr_symbolTable;
 
     for(auto &c : *((astBLOCK*) node->tls_block)->children){

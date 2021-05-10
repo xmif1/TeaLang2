@@ -30,8 +30,13 @@ public:
     void push_scope();
     void pop_scope();
 
+    symbol_table(symbol_table* parent){
+        this->parent_symbolTable = parent;
+    }
+
 private:
     vector<scope>* scopeTable = new vector<scope>(1);
+    symbol_table* parent_symbolTable;
 };
 
 
