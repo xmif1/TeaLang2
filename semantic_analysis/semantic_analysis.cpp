@@ -410,6 +410,9 @@ void semantic_analysis::visit(astVAR_DECL* node){
             << " cannot be initialised a value of type " << type_symbol2string(curr_type.second, curr_obj_class) << std::endl;
         }
     }
+    else if(var_type.first == grammarDFA::T_AUTO){
+        std::cerr << "ln " << node->line << ": variable " << var_ident << " of type auto must be initialised" << std::endl;
+    }
 
     bool insert = true;
     varSymbol* var;
@@ -477,6 +480,10 @@ void semantic_analysis::visit(astARR_DECL* node){
                 " at index " << i - 3 << std::endl;
             }
         }
+    }
+
+    if(arr_type.first == grammarDFA::T_AUTO && node->n_children < 4){
+        std::cerr << "ln " << node->line << ": array " << arr_ident << "[] of type auto must be initialised" << std::endl;
     }
 
     auto* arr = new arrSymbol(&arr_ident, arr_type, 0);

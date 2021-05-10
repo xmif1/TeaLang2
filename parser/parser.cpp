@@ -358,6 +358,11 @@ void parser::ruleSTATEMENT_T_IDENTIFIER_ASSIGNMENT(astInnerNode* parent, lexer::
     state_stack.push({.parent = parent, .symbol = grammarDFA::ASSIGNMENT});
 }
 
+void parser::ruleSTATEMENT_T_IDENTIFIER_FUNC_CALL(astInnerNode* parent, lexer::Token* token_ptr){
+    state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_SEMICOLON});
+    state_stack.push({.parent = parent, .symbol = grammarDFA::FUNC_CALL});
+}
+
 void parser::ruleSTATEMENT_T_IDENTIFIER_AS_TYPE(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = parent, .symbol = grammarDFA::FUNC_DECL});
 }
@@ -735,6 +740,9 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
                     if(peek_tokens[0].symbol == grammarDFA::T_IDENTIFIER ||
                        peek_tokens[1].symbol == grammarDFA::T_RSQUARE){
                                                 pr = &parser::ruleSTATEMENT_T_IDENTIFIER_AS_TYPE;
+                    }
+                    else if(peek_tokens[0].symbol == grammarDFA::T_LBRACKET){
+                                                pr = &parser::ruleSTATEMENT_T_IDENTIFIER_FUNC_CALL;
                     }
                     else if(peek_tokens[0].symbol == grammarDFA::T_PERIOD &&
                             peek_tokens[2].symbol == grammarDFA::T_LBRACKET){

@@ -25,8 +25,10 @@ public:
     void visit(astUNARY* node) override;
     void visit(astASSIGNMENT_IDENTIFIER* node) override;
     void visit(astASSIGNMENT_ELEMENT* node) override;
+    void visit(astASSIGNMENT_MEMBER* node) override;
     void visit(astVAR_DECL* node) override;
     void visit(astARR_DECL* node) override;
+    void visit(astTLS_DECL* node) override;
     void visit(astPRINT* node) override;
     void visit(astRETURN* node) override;
     void visit(astIF* node) override;
@@ -35,13 +37,16 @@ public:
     void visit(astFPARAMS* node) override;
     void visit(astFPARAM* node) override;
     void visit(astFUNC_DECL* node) override;
+    void visit(astMEMBER_ACCESS* node) override;
     void visit(astBLOCK* node) override;
     void visit(astPROGRAM* node) override;
 
 private:
-    symbol_table* symbolTable = new symbol_table();
     stack<pair<funcSymbol*, bool>>* functionStack = new stack<pair<funcSymbol*, bool>>; // 2nd used to check if func returns
-    grammarDFA::Symbol curr_type;
+    symbol_table* curr_symbolTable = new symbol_table(nullptr);
+    symbol_table* lookup_symbolTable = curr_symbolTable;
+
+    type_t curr_type;
     grammarDFA::Symbol curr_obj_class;
     obj_t curr_result;
 
@@ -49,7 +54,7 @@ private:
     literal_t addop(string op, literal_t lit1, literal_t lit2);
     literal_t relop(string op, literal_t lit1, literal_t lit2);
     literal_t unary(string op, literal_t literal);
-    literal_t default_literal(grammarDFA::Symbol type);
+    literal_t default_literal(type_t type);
 };
 
 #endif //CPS2000_INTERPRETER_H

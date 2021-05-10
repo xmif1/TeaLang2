@@ -61,9 +61,15 @@ public:
 
 class tlsSymbol: public symbol{
 public:
+    astBLOCK* tls_ref;
+
     tlsSymbol(string* identifier, string* struct_name) : symbol(identifier, type_t(grammarDFA::T_TLSTRUCT, *struct_name)){
         object_class = grammarDFA::SINGLETON;
     };
+
+    void set_tls_ref(astBLOCK* tls_node_ptr){
+        this->tls_ref = tls_node_ptr;
+    }
 };
 
 class funcSymbol: public symbol{

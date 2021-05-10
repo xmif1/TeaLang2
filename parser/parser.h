@@ -72,6 +72,7 @@ private:
     void ruleFOR_ASSIGNMENT(astInnerNode*,  lexer::Token*);
     void ruleSTATEMENT_T_LET_DECL(astInnerNode*,  lexer::Token*);
     void ruleSTATEMENT_T_IDENTIFIER_ASSIGNMENT(astInnerNode*,  lexer::Token*);
+    void ruleSTATEMENT_T_IDENTIFIER_FUNC_CALL(astInnerNode*,  lexer::Token*);
     void ruleSTATEMENT_T_IDENTIFIER_MEMBER_ACC(astInnerNode*,  lexer::Token*);
     void ruleSTATEMENT_T_IDENTIFIER_AS_TYPE(astInnerNode*,  lexer::Token*);
     void ruleSTATEMENT_T_PRINT(astInnerNode*,  lexer::Token*);

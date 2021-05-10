@@ -5,7 +5,7 @@
 #include "parser/parser.h"
 #include "semantic_analysis/semantic_analysis.h"
 // #include "semantic_analysis/graphviz_example/graphviz_ast_visitor.h"
-// #include "interpreter/interpreter.h"
+#include "interpreter/interpreter.h"
 
 int main(){
     std::ifstream source_file("/Users/xandrumifsud/Documents/Dev/TeaLang2/example_scripts/struct_test.txt");
@@ -16,16 +16,15 @@ int main(){
     auto* par = new parser(lex);
     // auto* gav = new graphviz_ast_visitor();
     auto* sa = new semantic_analysis();
-    // auto* itpr = new interpreter();
+    auto* itpr = new interpreter();
 
     // par->root->accept(gav);
     par->root->accept(sa);
-    // par->root->accept(itpr);
+    par->root->accept(itpr);
 
     return 0;
 }
 
 /* semantic_analysis/graphviz_example/graphviz_ast_visitor.cpp
                         semantic_analysis/graphviz_example/graphviz_ast_visitor.h
-                        interpreter/interpreter.cpp
-                        interpreter/interpreter.h */
+                         */

@@ -18,4 +18,6 @@ add_executable(TeaLang2 main.cpp
                         symbol_table/symbol_table.h
                         semantic_analysis/semantic_analysis.cpp
                         semantic_analysis/semantic_analysis.h
+                        interpreter/interpreter.cpp
+                        interpreter/interpreter.h
         )
