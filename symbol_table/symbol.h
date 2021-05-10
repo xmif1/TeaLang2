@@ -9,23 +9,27 @@
 #include <variant>
 #include <vector>
 #include <string>
+#include "symbol_table.h"
 #include "../visitor_ast/astNode.h"
 #include "../lexer/grammarDFA.h"
 
+class symbol_table;
+
 using namespace std;
 
-typedef variant<bool, int, float, char, string> literal_t;
+typedef pair<grammarDFA::Symbol, string> type_t;
+typedef variant<bool, int, float, char, string, symbol_table*> literal_t;
 typedef vector<literal_t>* literal_arr_t;
 typedef variant<literal_t, literal_arr_t> obj_t;
 
 class symbol{
 public:
     string identifier;
-    grammarDFA::Symbol type;
+    type_t type;
     grammarDFA::Symbol object_class;
     obj_t object;
     
-    symbol(string* identifier, grammarDFA::Symbol type){
+    symbol(string* identifier, type_t type){
         if(identifier != nullptr){
             this->identifier = *identifier;
         }
@@ -40,7 +44,7 @@ public:
 class varSymbol: public symbol{
 public:
 
-    varSymbol(string* identifier, grammarDFA::Symbol type) : symbol(identifier, type){
+    varSymbol(string* identifier, type_t type) : symbol(identifier, type){
         object_class = grammarDFA::SINGLETON;
     };
 };
@@ -49,9 +53,16 @@ class arrSymbol: public symbol{
 public:
     int size;
 
-    arrSymbol(string* identifier, grammarDFA::Symbol type, int size) : symbol(identifier, type){
+    arrSymbol(string* identifier, type_t type, int size) : symbol(identifier, type){
         object_class = grammarDFA::ARRAY;
         this->size = size;
+    };
+};
+
+class tlsSymbol: public symbol{
+public:
+    tlsSymbol(string* identifier, string* struct_name) : symbol(identifier, type_t(grammarDFA::T_TLSTRUCT, *struct_name)){
+        object_class = grammarDFA::SINGLETON;
     };
 };
 
@@ -61,7 +72,7 @@ public:
     vector<symbol*>* fparams;
     astBLOCK* func_ref;
 
-    funcSymbol(string* identifier, grammarDFA::Symbol type, grammarDFA::Symbol ret_obj_class,
+    funcSymbol(string* identifier, type_t type, grammarDFA::Symbol ret_obj_class,
                vector<symbol*>* fparams) : symbol(identifier, type){
 
         object_class = grammarDFA::FUNCTION;

@@ -26,8 +26,7 @@ public:
         FPARAMS_ext, APARAMS, APARAMS_ext, SUBEXPR, LITERAL, UNARY, FUNC_CALL, FUNC_CALL_APARAMS, IF, ELSE, FUNC_DECL,
         FUNC_DECL_FPARAMS, FOR, FOR_DECL, FOR_EXPRESSION, FOR_ASSIGNMENT, FACTOR, TERM, TERM_ext, S_EXPR, S_EXPR_ext,
         EXPRESSION_ext, TYPE_VAR, TYPE_ARR, IDENTIFIER, DECL, VAR_DECL_ASSIGNMENT, ARR_DECL_ASSIGNMENT,
-        ARR_DECL_ASSIGNMENT_ext, ELEMENT, FPARAM_TYPE, TLS_DECL, MEMBER, MEMBER_ACCESS, SINGLETON, ARRAY, FUNCTION,
-        STRUCT, // Non--Terminal Symbols, n_NTS = 49
+        ARR_DECL_ASSIGNMENT_ext, ELEMENT, FPARAM_TYPE, TLS_DECL, MEMBER, MEMBER_ACCESS, SINGLETON, ARRAY, FUNCTION, // Non--Terminal Symbols, n_NTS = 48
 
         T_INT, T_FLOAT, T_STRING, T_CHAR, T_AUTO, T_MUL, T_DIV, T_PLUS, T_MINUS, T_EQUALS, T_RELOP, // Terminal Symbols, n_token_types = 38
         T_LBRACKET, T_RBRACKET, T_LBRACE, T_RBRACE, T_PERIOD, T_COLON, T_SEMICOLON, T_COMMENT, T_INVALID, T_COMMA, T_EOF,
@@ -35,7 +34,7 @@ public:
         T_LSQUARE, T_RSQUARE, T_TLSTRUCT
     };
 
-    const static int n_NTS = 49, n_token_types = 38;
+    const static int n_NTS = 48, n_token_types = 38;
 
     Symbol state_tok(State, string*);
     State transition(State, char);

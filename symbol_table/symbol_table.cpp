@@ -12,7 +12,10 @@ funcSymbol* symbol_table::lookup(const string& identifier, vector<symbol*>* fpar
                     auto* curr_symbol = (funcSymbol*) symb_iter->second;
                     bool same_signature = true;
 
-                    if(fparams->size() == curr_symbol->fparams->size()){
+                    if(fparams->size() == 0 && curr_symbol->fparams->size() == 0){
+                        same_signature = true;
+                    }
+                    else if(fparams->size() == curr_symbol->fparams->size()){
                         for(int i = 0; i < fparams->size(); i++){
                             if(fparams->at(i)->type != curr_symbol->fparams->at(i)->type ||
                                fparams->at(i)->object_class != curr_symbol->fparams->at(i)->object_class){

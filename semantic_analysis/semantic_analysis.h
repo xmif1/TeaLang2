@@ -25,8 +25,10 @@ public:
     void visit(astUNARY* node) override;
     void visit(astASSIGNMENT_IDENTIFIER* node) override;
     void visit(astASSIGNMENT_ELEMENT* node) override;
+    void visit(astASSIGNMENT_MEMBER *node) override;
     void visit(astVAR_DECL* node) override;
     void visit(astARR_DECL* node) override;
+    void visit(astTLS_DECL* node) override;
     void visit(astPRINT* node) override;
     void visit(astRETURN* node) override;
     void visit(astIF* node) override;
@@ -35,17 +37,20 @@ public:
     void visit(astFPARAMS* node) override;
     void visit(astFPARAM* node) override;
     void visit(astFUNC_DECL* node) override;
+    void visit(astMEMBER_ACCESS* node) override;
     void visit(astBLOCK* node) override;
     void visit(astPROGRAM* node) override;
 
 private:
     stack<pair<funcSymbol*, bool>>* functionStack = new stack<pair<funcSymbol*, bool>>; // 2nd used to check if func returns
-    symbol_table* symbolTable = new symbol_table();
+    symbol_table* curr_symbolTable = new symbol_table();
+    symbol_table* lookup_symbolTable = curr_symbolTable;
+
     bool type_deduction_reqd = false;
-    grammarDFA::Symbol curr_type;
+    type_t curr_type;
     grammarDFA::Symbol curr_obj_class;
 
-    static string type_symbol2string(grammarDFA::Symbol type, grammarDFA::Symbol obj_class);
+    static string type_symbol2string(string type_str, grammarDFA::Symbol obj_class);
     static string typeVect_symbol2string(vector<symbol*>* typeVect);
     void binop_type_check(astBinaryOp* binop_node);
 };

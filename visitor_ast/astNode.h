@@ -95,10 +95,12 @@ public:
 class astLITERAL: public astLeafNode{
 public:
     grammarDFA::Symbol type;
+    string type_str;
 
-    astLITERAL(astInnerNode* parent, string lexeme, grammarDFA::Symbol type, unsigned int line) :
+    astLITERAL(astInnerNode* parent, string lexeme, grammarDFA::Symbol type, string type_str, unsigned int line) :
         astLeafNode(parent, "LITERAL", line,std::move(lexeme)){
             this->type = type;
+            this->type_str = type_str;
     }
 
     void accept(visitor* v) override;
@@ -219,7 +221,7 @@ public:
 
 class astASSIGNMENT_MEMBER: public astInnerNode{
 public:
-    astNode* member_acc;
+    astNode* tls_name;
     astNode* assignment;
 
     explicit astASSIGNMENT_MEMBER(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "ASSIGNMENT", line){
@@ -363,7 +365,12 @@ public:
 
 class astMEMBER_ACCESS: public astInnerNode{
 public:
-    explicit astMEMBER_ACCESS(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "MEMBER_ACCESS", line){}
+    astNode* tls_name;
+    astNode* member;
+
+    explicit astMEMBER_ACCESS(astInnerNode* parent, unsigned int line) : astInnerNode(parent, "MEMBER_ACCESS", line){
+        children->resize(2, nullptr);
+    }
 
     void accept(visitor* v) override;
 };

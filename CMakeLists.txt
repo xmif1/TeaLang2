@@ -13,4 +13,9 @@ add_executable(TeaLang2 main.cpp
                         visitor_ast/astNode.cpp
                         visitor_ast/astNode.h
                         visitor_ast/visitor.h
+                        symbol_table/symbol.h
+                        symbol_table/symbol_table.cpp
+                        symbol_table/symbol_table.h
+                        semantic_analysis/semantic_analysis.cpp
+                        semantic_analysis/semantic_analysis.h
         )

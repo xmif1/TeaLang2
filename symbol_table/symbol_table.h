@@ -12,6 +12,12 @@
 #include "../lexer/grammarDFA.h"
 #include "symbol.h"
 
+class symbol;
+class varSymbol;
+class arrSymbol;
+class tlsSymbol;
+class funcSymbol;
+
 using namespace std;
 
 typedef unordered_multimap<string, symbol*> scope;

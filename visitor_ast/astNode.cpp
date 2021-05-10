@@ -114,7 +114,7 @@ void astASSIGNMENT_ELEMENT::accept(visitor* v){
 }
 
 void astASSIGNMENT_MEMBER::accept(visitor* v){
-    member_acc = children->at(0);
+    tls_name = children->at(0);
     assignment = children->at(1);
     v->visit(this);
 }
@@ -189,6 +189,8 @@ void astFUNC_DECL::accept(visitor* v){
 }
 
 void astMEMBER_ACCESS::accept(visitor* v){
+    tls_name = children->at(0);
+    member = children->at(1);
     v->visit(this);
 }
 

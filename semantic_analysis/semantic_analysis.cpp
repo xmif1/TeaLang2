@@ -9,39 +9,19 @@
 
 // also note that TeaLang does not do any implicit typecasting; this must be kept in mind during curr_type--checking
 
-string semantic_analysis::type_symbol2string(grammarDFA::Symbol type, grammarDFA::Symbol obj_class){
-    string type_str;
-    
-    if(type == grammarDFA::T_BOOL){
-        type_str = "bool";
-    }
-    else if(type == grammarDFA::T_INT){
-        type_str = "int";
-    }
-    else if(type == grammarDFA::T_FLOAT){
-        type_str = "float";
-    }
-    else if(type == grammarDFA::T_STRING){
-        type_str = "string";
-    }
-    else if(type == grammarDFA::T_CHAR){
-        type_str = "char";
+string semantic_analysis::type_symbol2string(string type_str, grammarDFA::Symbol obj_class){
+    if(obj_class == grammarDFA::ARRAY){
+        return type_str += "[]";
     }
     else{
-        type_str = "auto";
+        return type_str;
     }
-    
-    if(obj_class == grammarDFA::ARRAY){
-        type_str += "[]";
-    }
-    
-    return type_str;
 }
 
 string semantic_analysis::typeVect_symbol2string(vector<symbol*>* typeVect){
     string ret;
     for(auto &symb : *typeVect){
-        ret += (type_symbol2string(symb->type, symb->object_class) + ", ");
+        ret += (type_symbol2string(symb->type.second, symb->object_class) + ", ");
     }
     ret.pop_back(); // remove last ' '
     ret.pop_back(); // remove last ','
@@ -51,7 +31,8 @@ string semantic_analysis::typeVect_symbol2string(vector<symbol*>* typeVect){
 
 void semantic_analysis::binop_type_check(astBinaryOp* binop_node){
     bool op1_type_err, op2_type_err;
-    grammarDFA::Symbol op1_type, op2_type, op1_obj_class, op2_obj_class;
+    grammarDFA::Symbol op1_obj_class, op2_obj_class;
+    type_t op1_type, op2_type;
 
     if(binop_node->operand1 != nullptr){
         binop_node->operand1->accept(this);
@@ -86,7 +67,8 @@ void semantic_analysis::binop_type_check(astBinaryOp* binop_node){
         type_deduction_reqd = true;
 
         std::cerr << "ln " << binop_node->line << ": (" << binop_node->op << ") operands have mismatched types " <<
-        type_symbol2string(op1_type, op1_obj_class) << " and " << type_symbol2string(op2_type, op2_obj_class) << std::endl;
+        type_symbol2string(op1_type.second, op1_obj_class) << " and " << type_symbol2string(op2_type.second, op2_obj_class)
+        << std::endl;
     }
     else{
         type_deduction_reqd = false;
@@ -100,13 +82,16 @@ void semantic_analysis::visit(astTYPE* node){}
 
 void semantic_analysis::visit(astLITERAL* node){
     type_deduction_reqd = false;
-    curr_type = node->type;
+    curr_type = type_t(node->type, node->type_str);
     curr_obj_class = grammarDFA::SINGLETON;
 }
 
-// only called when the identifier refers to an operand standing for a variable or array, not for eg. a function  call
+// only called when the identifier refers to an operand standing for a variable/array/struct, not for eg. a function  call
 void semantic_analysis::visit(astIDENTIFIER* node){
-    if(symbol* ret_symbol = symbolTable->lookup(node->lexeme); ret_symbol != nullptr){
+    symbol* ret_symbol = lookup_symbolTable->lookup(node->lexeme);
+    lookup_symbolTable = curr_symbolTable;
+
+    if(ret_symbol != nullptr){
         curr_type = ret_symbol->type;
         curr_obj_class = ret_symbol->object_class;
         type_deduction_reqd = false;
@@ -119,29 +104,22 @@ void semantic_analysis::visit(astIDENTIFIER* node){
 
 // only called when the identifier refers to an operand standing for an array element, not for eg. a function  call
 void semantic_analysis::visit(astELEMENT* node){
-    if(node->index != nullptr){
-        (node->index)->accept(this);
-
-        if(type_deduction_reqd){
-            std::cerr << "ln " << node->line << ": array index is of an indeterminate type" << std::endl;
-        }
-        else if(curr_type != grammarDFA::T_INT || curr_obj_class != grammarDFA::SINGLETON){
-            std::cerr << "ln " << node->line << ": array index must be an integer (is of type " <<
-                      type_symbol2string(curr_type, curr_obj_class) << " instead)" << std::endl;
-        }
-    }
+    type_t ret_type = curr_type;
+    grammarDFA::Symbol ret_obj_class = curr_obj_class;
 
     if(node->identifier != nullptr){
         string arr_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
+        symbol* ret_symbol = lookup_symbolTable->lookup(arr_ident);
+        lookup_symbolTable = curr_symbolTable;
 
-        if(symbol* ret_symbol = symbolTable->lookup(arr_ident); ret_symbol != nullptr){
+        if(ret_symbol != nullptr){
             if(ret_symbol->object_class != grammarDFA::ARRAY){
                 std::cerr << "ln " << node->line << arr_ident << " is not an array" << std::endl;
                 type_deduction_reqd = true;
             }
             else{
-                curr_type = ret_symbol->type;
-                curr_obj_class = grammarDFA::SINGLETON;
+                ret_type = ret_symbol->type;
+                ret_obj_class = grammarDFA::SINGLETON;
                 type_deduction_reqd = false;
             }
         }
@@ -152,20 +130,35 @@ void semantic_analysis::visit(astELEMENT* node){
     }else{
         type_deduction_reqd = true;
     }
+
+    if(node->index != nullptr){
+        (node->index)->accept(this);
+
+        if(type_deduction_reqd){
+            std::cerr << "ln " << node->line << ": array index is of an indeterminate type" << std::endl;
+        }
+        else if(curr_type.first != grammarDFA::T_INT || curr_obj_class != grammarDFA::SINGLETON){
+            std::cerr << "ln " << node->line << ": array index must be an integer (is of type " <<
+                      type_symbol2string(curr_type.second, curr_obj_class) << " instead)" << std::endl;
+        }
+    }
+
+    curr_type = ret_type;
+    curr_obj_class = ret_obj_class;
 }
 
 void semantic_analysis::visit(astMULTOP* node){
     binop_type_check(node);
 
     if(!type_deduction_reqd){
-        if((node->op == "*" || node->op == "/") && curr_type != grammarDFA::T_INT && curr_type != grammarDFA::T_FLOAT){
+        if((node->op == "*" || node->op == "/") && curr_type.first != grammarDFA::T_INT && curr_type.first != grammarDFA::T_FLOAT){
             std::cerr << "ln " << node->line << ": binary operation " << node->op <<
-            " requires matching int or float operands (given " << type_symbol2string(curr_type, curr_obj_class)
+            " requires matching int or float operands (given " << type_symbol2string(curr_type.second, curr_obj_class)
             << " instead)" << std::endl;
         }
-        else if(node->op == "and" && curr_type != grammarDFA::T_BOOL){
+        else if(node->op == "and" && curr_type.first != grammarDFA::T_BOOL){
             std::cerr << "ln " << node->line << ": binary operation " << node->op <<
-            " requires matching boolean operands (given " << type_symbol2string(curr_type, curr_obj_class)
+            " requires matching boolean operands (given " << type_symbol2string(curr_type.second, curr_obj_class)
             << " instead)" << std::endl;
         }
     }
@@ -175,27 +168,35 @@ void semantic_analysis::visit(astADDOP* node){
     binop_type_check(node);
 
     if(!type_deduction_reqd){
-        if(node->op == "+" && curr_type == grammarDFA::T_BOOL){
+        if(node->op == "+" && (curr_type.first == grammarDFA::T_BOOL || curr_type.first == grammarDFA::T_TLSTRUCT)){
             std::cerr << "ln " << node->line << ": binary operation " << node->op
-                      << " requires matching int, float, char or string operands (given "
-                      << type_symbol2string(curr_type, curr_obj_class) << " instead)" << std::endl;
+            << " requires matching int, float, char or string operands (given "
+            << type_symbol2string(curr_type.second, curr_obj_class) << " instead)" << std::endl;
         }
-        else if(node->op == "-" && (curr_type == grammarDFA::T_STRING || curr_type == grammarDFA::T_BOOL)){
+        else if(node->op == "-" && (curr_type.first == grammarDFA::T_STRING || curr_type.first == grammarDFA::T_BOOL
+                                                                      || curr_type.first == grammarDFA::T_TLSTRUCT)){
             std::cerr << "ln " << node->line << ": binary operation " << node->op
-                      << " requires matching int, float or char operands (given "
-                      << type_symbol2string(curr_type, curr_obj_class) << " instead)" << std::endl;
+            << " requires matching int, float or char operands (given "
+            << type_symbol2string(curr_type.second, curr_obj_class) << " instead)" << std::endl;
         }
-        else if(node->op == "or" && curr_type != grammarDFA::T_BOOL){
+        else if(node->op == "or" && curr_type.first != grammarDFA::T_BOOL){
             std::cerr << "ln " << node->line << ": binary operation " << node->op
-                      << " requires matching boolean operands (given " << type_symbol2string(curr_type, curr_obj_class)
-                      << " instead)" << std::endl;
+            << " requires matching boolean operands (given " << type_symbol2string(curr_type.second, curr_obj_class)
+            << " instead)" << std::endl;
         }
     }
 }
 
 void semantic_analysis::visit(astRELOP* node){
     binop_type_check(node);
-    curr_type = grammarDFA::T_BOOL;
+
+    if(!type_deduction_reqd && curr_type.first == grammarDFA::T_TLSTRUCT){
+        std::cerr << "ln " << node->line << ": binary operation " << node->op <<
+        " requires matching int, float, char, string or boolean operanrs (given "
+        << type_symbol2string(curr_type.second, curr_obj_class) << " instead)" << std::endl;
+    }
+
+    curr_type = type_t(grammarDFA::T_BOOL, "bool");
 }
 
 void semantic_analysis::visit(astAPARAMS* node){
@@ -214,6 +215,17 @@ void semantic_analysis::visit(astAPARAMS* node){
             symbol* aparam;
             if(curr_obj_class == grammarDFA::SINGLETON){
                 aparam = new varSymbol(nullptr, curr_type);
+
+                if(curr_type.first == grammarDFA::T_TLSTRUCT){
+                    symbol* ret_symbol = lookup_symbolTable->lookup(curr_type.second);
+                    lookup_symbolTable = curr_symbolTable;
+
+                    if(ret_symbol != nullptr){
+                        aparam->set_object(ret_symbol->object);
+                    }else{
+                        std::cerr << "ln " << node->line << ": tlstruct " << curr_type.second << " has not been declared" << std::endl;
+                    }
+                }
             }
             else{
                 aparam = new arrSymbol(nullptr, curr_type, 0);
@@ -229,32 +241,34 @@ void semantic_analysis::visit(astAPARAMS* node){
 void semantic_analysis::visit(astFUNC_CALL* node){
     if(node->identifier != nullptr){
         string func_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
-        auto* expected_func = new funcSymbol(&func_ident, grammarDFA::T_TYPE, grammarDFA::FUNCTION, new vector<symbol*>(0));
+        auto* expected_func = new funcSymbol(&func_ident, type_t(grammarDFA::T_TYPE, ""),
+                                             grammarDFA::FUNCTION, new vector<symbol*>(0));
         functionStack->push(make_pair(expected_func, true));
 
+        symbol_table* ref_lookup_symbolTable = lookup_symbolTable;
+        lookup_symbolTable = curr_symbolTable;
+
+        type_deduction_reqd = false;
         if(node->aparams != nullptr){
             node->aparams->accept(this);
+        }
 
-            if(!type_deduction_reqd){
-                funcSymbol* func = symbolTable->lookup(func_ident, expected_func->fparams);
+        if(!type_deduction_reqd){
+            funcSymbol* func = ref_lookup_symbolTable->lookup(func_ident, expected_func->fparams);
 
-                if(func != nullptr){
-                    curr_type = func->type;
-                    curr_obj_class = func->ret_obj_class;
-                    if(func->type == grammarDFA::T_AUTO){
-                        type_deduction_reqd = true;
-                    }
-                }
-                else{
-                    std::cerr << "ln " << node->line << ": function " << func_ident << "("
-                    << typeVect_symbol2string(expected_func->fparams) << ") has not been declared" << std::endl;
-
+            if(func != nullptr){
+                curr_type = func->type;
+                curr_obj_class = func->ret_obj_class;
+                if((func->type).first == grammarDFA::T_AUTO){
                     type_deduction_reqd = true;
                 }
             }
-        }
-        else{
-            type_deduction_reqd = true;
+            else{
+                std::cerr << "ln " << node->line << ": function " << func_ident << "("
+                          << typeVect_symbol2string(expected_func->fparams) << ") has not been declared" << std::endl;
+
+                type_deduction_reqd = true;
+            }
         }
 
         delete expected_func;
@@ -279,14 +293,15 @@ void semantic_analysis::visit(astUNARY* node){
         node->operand->accept(this);
 
         if(!type_deduction_reqd){
-            if(node->op == "-" && (curr_type == grammarDFA::T_BOOL || curr_type == grammarDFA::T_STRING)){
+            if(node->op == "-" && (curr_type.first == grammarDFA::T_BOOL || curr_type.first == grammarDFA::T_STRING
+                                                                   || curr_type.first == grammarDFA::T_TLSTRUCT)){
                 std::cerr << "ln " << node->line << ": binary operation " << node->op <<
-                " requires matching int, float or char types (given " << type_symbol2string(curr_type, curr_obj_class)
+                " requires matching int, float or char types (given " << type_symbol2string(curr_type.second, curr_obj_class)
                 << " instead)" << std::endl;
             }
-            else if(node->op == "not" && curr_type != grammarDFA::T_BOOL){
+            else if(node->op == "not" && curr_type.first != grammarDFA::T_BOOL){
                 std::cerr << "ln " << node->line << ": binary operation " << node->op <<
-                " requires a boolean operand (given " << type_symbol2string(curr_type, curr_obj_class) << " instead)"
+                " requires a boolean operand (given " << type_symbol2string(curr_type.second, curr_obj_class) << " instead)"
                 << std::endl;
             }
         }
@@ -300,7 +315,8 @@ void semantic_analysis::visit(astASSIGNMENT_IDENTIFIER* node){
     if(node->identifier != nullptr){
         node->identifier->accept(this);
         bool found_var = !type_deduction_reqd;
-        grammarDFA::Symbol obj_type = curr_type;
+
+        type_t obj_type = curr_type;
         grammarDFA::Symbol obj_class = curr_obj_class;
 
         if(node->expression != nullptr){
@@ -308,13 +324,13 @@ void semantic_analysis::visit(astASSIGNMENT_IDENTIFIER* node){
             if(found_var){
                 if(type_deduction_reqd){
                     std::cerr << "ln " << node->line << ": " << ((astIDENTIFIER*) node->identifier)->lexeme
-                    << " of type " << type_symbol2string(obj_type, obj_class) <<
+                    << " of type " << type_symbol2string(obj_type.second, obj_class) <<
                     " cannot be assigned to an indeterminate type" << std::endl;
                 }
                 else if(curr_type != obj_type || curr_obj_class != obj_class){
                     std::cerr << "ln " << node->line << ": variable " << ((astIDENTIFIER*) node->identifier)->lexeme
-                    << " of type " << type_symbol2string(obj_type, obj_class)
-                    << " cannot be assigned a value of type " << type_symbol2string(curr_type, curr_obj_class) << std::endl;
+                    << " of type " << type_symbol2string(obj_type.second, obj_class)
+                    << " cannot be assigned a value of type " << type_symbol2string(curr_type.second, curr_obj_class) << std::endl;
                 }
             }
         }
@@ -323,9 +339,11 @@ void semantic_analysis::visit(astASSIGNMENT_IDENTIFIER* node){
 
 void semantic_analysis::visit(astASSIGNMENT_ELEMENT* node){
     if(node->element != nullptr){
+        symbol_table* ref_lookup_symbolTable = lookup_symbolTable;
+
         node->element->accept(this);
         bool found_elt = !type_deduction_reqd;
-        grammarDFA::Symbol elt_type = curr_type;
+        type_t elt_type = curr_type;
 
         if(node->expression != nullptr){
             node->expression->accept(this);
@@ -335,17 +353,17 @@ void semantic_analysis::visit(astASSIGNMENT_ELEMENT* node){
 
                 if(type_deduction_reqd){
                     std::cerr << "ln " << node->line << ": array " << arr_ident << " of type " <<
-                    type_symbol2string(elt_type, grammarDFA::ARRAY)
+                    type_symbol2string(elt_type.second, grammarDFA::ARRAY)
                     << " cannot have elements assigned to an indeterminate type" << std::endl;
                 }
-                else if(elt_type == grammarDFA::T_AUTO && curr_obj_class == grammarDFA::SINGLETON){
-                    symbol* ret_symbol = symbolTable->lookup(arr_ident);
+                else if(elt_type.first == grammarDFA::T_AUTO && curr_obj_class == grammarDFA::SINGLETON){
+                    symbol* ret_symbol = ref_lookup_symbolTable->lookup(arr_ident);
                     ret_symbol->type = curr_type;
                 }
                 else if(curr_type != elt_type || curr_obj_class != grammarDFA::SINGLETON){
                     std::cerr << "ln " << node->line << ": array " << arr_ident << " of type " <<
-                    type_symbol2string(elt_type, grammarDFA::ARRAY)
-                    << " cannot have elements assigned a value of type " << type_symbol2string(curr_type, curr_obj_class)
+                    type_symbol2string(elt_type.second, grammarDFA::ARRAY)
+                    << " cannot have elements assigned a value of type " << type_symbol2string(curr_type.second, curr_obj_class)
                     << std::endl;
                 }
             }
@@ -353,28 +371,63 @@ void semantic_analysis::visit(astASSIGNMENT_ELEMENT* node){
     }
 }
 
+void semantic_analysis::visit(astASSIGNMENT_MEMBER* node) {
+    if(node->tls_name != nullptr){
+        string tls_ident = ((astIDENTIFIER*) node->tls_name)->lexeme;
+        symbol* ret_symbol = lookup_symbolTable->lookup(tls_ident);
+        lookup_symbolTable = curr_symbolTable;
+
+        if(ret_symbol != nullptr){
+            if((ret_symbol->type).first != grammarDFA::T_TLSTRUCT || ret_symbol->object_class != grammarDFA::SINGLETON){
+                std::cerr << "ln " << node->line << ": variable " << tls_ident << " is not a tlstruct type" << std::endl;
+            }
+            else if(node->assignment != nullptr){
+                lookup_symbolTable = get<symbol_table*>(get<literal_t>(ret_symbol->object));
+                node->assignment->accept(this);
+            }
+        }
+        else{
+            std::cerr << "ln " << node->line << ": identifier " << tls_ident << " has not been declared" << std::endl;
+        }
+    }
+}
+
 void semantic_analysis::visit(astVAR_DECL* node){
     string var_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
-    grammarDFA::Symbol var_type = ((astTYPE*) node->type)->type;
+    type_t var_type = type_t(((astTYPE*) node->type)->type, ((astTYPE*) node->type)->lexeme);
 
     if(node->expression != nullptr){
         node->expression->accept(this);
         if(type_deduction_reqd){
-            std::cerr << "ln " << node->line << ": variable " << var_ident << " of type " << ((astTYPE*) node->type)->lexeme
+            std::cerr << "ln " << node->line << ": variable " << var_ident << " of type " << var_type.second
             << " cannot be initialised to an indeterminate type" << std::endl;
         }
-        else if(var_type == grammarDFA::T_AUTO && curr_obj_class == grammarDFA::SINGLETON){
+        else if(var_type.first == grammarDFA::T_AUTO && curr_obj_class == grammarDFA::SINGLETON){
             var_type = curr_type;
         }
-        else if(curr_type != var_type || curr_obj_class != grammarDFA::SINGLETON){
-            std::cerr << "ln " << node->line << ": variable " << var_ident << " of type " << ((astTYPE*) node->type)->lexeme
-            << " cannot be initialised a value of type " << type_symbol2string(curr_type, curr_obj_class) << std::endl;
+        else if(curr_type != var_type || curr_obj_class == grammarDFA::ARRAY || curr_obj_class == grammarDFA::FUNCTION){
+            std::cerr << "ln " << node->line << ": variable " << var_ident << " of type " << var_type.second
+            << " cannot be initialised a value of type " << type_symbol2string(curr_type.second, curr_obj_class) << std::endl;
         }
     }
 
-    auto* var = new varSymbol(&var_ident, var_type);
+    bool insert = true;
+    varSymbol* var;
+    var = new varSymbol(&var_ident, var_type);
 
-    if(!symbolTable->insert(var)){
+    if(var_type.first == grammarDFA::T_TLSTRUCT){
+        symbol* ret_symbol = lookup_symbolTable->lookup(var_type.second);
+        lookup_symbolTable = curr_symbolTable;
+
+        if(ret_symbol != nullptr){
+            var->set_object(ret_symbol->object);
+        }else{
+            insert = false;
+            std::cerr << "ln " << node->line << ": tlstruct " << var_type.second << " has not been declared" << std::endl;
+        }
+    }
+
+    if(insert && !curr_symbolTable->insert(var)){
         delete var;
         std::cerr << "ln " << node->line << ": identifier " << var_ident << " has already been declared" << std::endl;
     }
@@ -382,7 +435,7 @@ void semantic_analysis::visit(astVAR_DECL* node){
 
 void semantic_analysis::visit(astARR_DECL* node){
     string arr_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
-    grammarDFA::Symbol arr_type = ((astTYPE*) node->type)->type;
+    type_t arr_type = type_t(((astTYPE*) node->type)->type, ((astTYPE*) node->type)->lexeme);
 
     if(node->size != nullptr){
         node->size->accept(this);
@@ -390,9 +443,9 @@ void semantic_analysis::visit(astARR_DECL* node){
         if(type_deduction_reqd){
             std::cerr << "ln " << node->line << ": array size is of an indeterminate type" << std::endl;
         }
-        else if(curr_type != grammarDFA::T_INT || curr_obj_class != grammarDFA::SINGLETON){
+        else if(curr_type.first != grammarDFA::T_INT || curr_obj_class != grammarDFA::SINGLETON){
             std::cerr << "ln " << node->line << ": array size must be an integer (is of type " <<
-            type_symbol2string(curr_type, curr_obj_class) << " instead)" << std::endl;
+            type_symbol2string(curr_type.second, curr_obj_class) << " instead)" << std::endl;
         }
     }
 
@@ -402,16 +455,16 @@ void semantic_analysis::visit(astARR_DECL* node){
 
             if(type_deduction_reqd){
                 std::cerr << "ln " << node->line << ": array " << arr_ident << " of type " <<
-                type_symbol2string(arr_type, grammarDFA::ARRAY)
+                type_symbol2string(arr_type.second, grammarDFA::ARRAY)
                 << " cannot be initialised to an indeterminate type at index " << i - 3 << std::endl;
             }
-            else if(arr_type == grammarDFA::T_AUTO && curr_obj_class == grammarDFA::SINGLETON){
+            else if(arr_type.first == grammarDFA::T_AUTO && curr_obj_class == grammarDFA::SINGLETON){
                 arr_type = curr_type;
             }
             else if(curr_type != arr_type || curr_obj_class != grammarDFA::SINGLETON){
                 std::cerr << "ln " << node->line << ": array " << arr_ident << " of type " <<
-                type_symbol2string(arr_type, grammarDFA::ARRAY)
-                << " cannot be initialised to a value of type " << type_symbol2string(curr_type, curr_obj_class) <<
+                type_symbol2string(arr_type.second, grammarDFA::ARRAY)
+                << " cannot be initialised to a value of type " << type_symbol2string(curr_type.second, curr_obj_class) <<
                 " at index " << i - 3 << std::endl;
             }
         }
@@ -419,15 +472,46 @@ void semantic_analysis::visit(astARR_DECL* node){
 
     auto* arr = new arrSymbol(&arr_ident, arr_type, 0);
 
-    if(!symbolTable->insert(arr)){
+    if(!curr_symbolTable->insert(arr)){
         delete arr;
         std::cerr << "ln " << node->line << ": identifier " << arr_ident << " has already been declared" << std::endl;
+    }
+}
+
+void semantic_analysis::visit(astTLS_DECL* node){
+    string tls_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
+    auto* tls = new tlsSymbol(&tls_ident, &tls_ident);
+
+    auto* ref_curr_symbolTable = curr_symbolTable;
+    auto* ref_lookup_symbolTable = lookup_symbolTable;
+    curr_symbolTable = new symbol_table();
+    lookup_symbolTable = curr_symbolTable;
+
+    for(auto &c : *((astBLOCK*) node->tls_block)->children){
+        c->accept(this);
+    }
+
+    tls->set_object(curr_symbolTable);
+    curr_symbolTable = ref_curr_symbolTable;
+    lookup_symbolTable = ref_lookup_symbolTable;
+
+    if(!curr_symbolTable->insert(tls)){
+        delete tls;
+        std::cerr << "ln " << node->line << ": tlstruct " << tls_ident << " has already been declared" << std::endl;
     }
 }
 
 void semantic_analysis::visit(astPRINT* node){
     if(node->expression != nullptr){
         node->expression->accept(this);
+
+        if(type_deduction_reqd){
+            std::cerr << "ln " << node->line << ": print operation is unsupported on indeterminate types" << std::endl;
+        }
+        else if(curr_type.first == grammarDFA::T_TLSTRUCT){
+            std::cerr << "ln " << node->line << ": print operation is unsupported on tlstruct type " <<
+            type_symbol2string(curr_type.second, curr_obj_class) << std::endl;
+        }
     }
 }
 
@@ -439,8 +523,8 @@ void semantic_analysis::visit(astRETURN* node){
         node->expression->accept(this);
         functionStack->top().second = true;
 
-        if(type_deduction_reqd && curr_type != grammarDFA::T_AUTO){
-            if((functionStack->top().first)->type == grammarDFA::T_AUTO){
+        if(type_deduction_reqd && curr_type.first != grammarDFA::T_AUTO){
+            if((functionStack->top().first)->type.first == grammarDFA::T_AUTO){
                 std::cerr << "ln " << node->line << ": function " << (functionStack->top().first)->identifier << "(" <<
                 typeVect_symbol2string((functionStack->top().first)->fparams) << ")"
                 << " returns a value of an indeterminate type" << std::endl;
@@ -448,15 +532,15 @@ void semantic_analysis::visit(astRETURN* node){
                 std::cerr << "ln " << node->line << ": function " << (functionStack->top().first)->identifier << "(" <<
                 typeVect_symbol2string((functionStack->top().first)->fparams) << ")"
                 << " returns a value of an indeterminate type (expected "
-                << type_symbol2string((functionStack->top().first)->type, (functionStack->top().first)->ret_obj_class)
+                << type_symbol2string((functionStack->top().first)->type.second, (functionStack->top().first)->ret_obj_class)
                 << " return type)" << std::endl;
             }
         }
-        else if(curr_type != grammarDFA::T_AUTO && (functionStack->top().first)->type == grammarDFA::T_AUTO){
+        else if(curr_type.first != grammarDFA::T_AUTO && (functionStack->top().first)->type.first == grammarDFA::T_AUTO){
             if((functionStack->top().first)->ret_obj_class == grammarDFA::ARRAY && curr_obj_class != grammarDFA::ARRAY){
                 std::cerr << "ln " << node->line << ": function " << (functionStack->top().first)->identifier << "(" <<
                 typeVect_symbol2string((functionStack->top().first)->fparams) << ") returns a value of type "
-                << type_symbol2string(curr_type, curr_obj_class) << " (expected array return type)" << std::endl;
+                << type_symbol2string(curr_type.second, curr_obj_class) << " (expected array return type)" << std::endl;
             }else{
                 (functionStack->top().first)->type = curr_type;
                 (functionStack->top().first)->ret_obj_class = curr_obj_class;
@@ -466,8 +550,8 @@ void semantic_analysis::visit(astRETURN* node){
                 curr_obj_class != (functionStack->top().first)->ret_obj_class)){
             std::cerr << "ln " << node->line << ": function " << (functionStack->top().first)->identifier << "(" <<
             typeVect_symbol2string((functionStack->top().first)->fparams) << ") returns a value of type " <<
-            type_symbol2string(curr_type, curr_obj_class) << " (expected " <<
-            type_symbol2string((functionStack->top().first)->type, (functionStack->top().first)->ret_obj_class)
+            type_symbol2string(curr_type.second, curr_obj_class) << " (expected " <<
+            type_symbol2string((functionStack->top().first)->type.second, (functionStack->top().first)->ret_obj_class)
             << " return type)" << std::endl;
         }
     }
@@ -481,8 +565,9 @@ void semantic_analysis::visit(astIF* node){
             std::cerr << "ln " << node->line << ": if-else conditional is of an indeterminate type (possibly not boolean)"
             << std::endl;
         }
-        else if(curr_type != grammarDFA::T_BOOL || curr_obj_class != grammarDFA::SINGLETON){
-            std::cerr << "ln " << node->line << ": if-else conditional is not of boolean type" << std::endl;
+        else if(curr_type.first != grammarDFA::T_BOOL || curr_obj_class != grammarDFA::SINGLETON){
+            std::cerr << "ln " << node->line << ": if-else conditional is not of boolean type (but is of type " <<
+            type_symbol2string(curr_type.second, curr_obj_class) << ")" << std::endl;
         }
     }
 
@@ -517,7 +602,7 @@ void semantic_analysis::visit(astIF* node){
 }
 
 void semantic_analysis::visit(astFOR* node){
-    symbolTable->push_scope();
+    curr_symbolTable->push_scope();
 
     if(node->decl != nullptr){ node->decl->accept(this);}
 
@@ -528,8 +613,9 @@ void semantic_analysis::visit(astFOR* node){
             std::cerr << "ln " << node->line << ": for-loop conditional is of an indeterminate type (possibly not boolean)"
             << std::endl;
         }
-        else if(curr_type != grammarDFA::T_BOOL || curr_obj_class != grammarDFA::SINGLETON){
-            std::cerr << "ln " << node->line << ": for-loop conditional is not of boolean type" << std::endl;
+        else if(curr_type.first != grammarDFA::T_BOOL || curr_obj_class != grammarDFA::SINGLETON){
+            std::cerr << "ln " << node->line << ": for-loop conditional is not of boolean type (but is of type " <<
+            type_symbol2string(curr_type.second, curr_obj_class) << ")" << std::endl;
         }
     }
 
@@ -539,7 +625,7 @@ void semantic_analysis::visit(astFOR* node){
         c->accept(this);
     }
 
-    symbolTable->pop_scope();
+    curr_symbolTable->pop_scope();
 }
 
 void semantic_analysis::visit(astWHILE* node){
@@ -550,8 +636,9 @@ void semantic_analysis::visit(astWHILE* node){
             std::cerr << "ln " << node->line << ": while-loop conditional is of an indeterminate type (possibly not boolean)"
                       << std::endl;
         }
-        else if(curr_type != grammarDFA::T_BOOL || curr_obj_class != grammarDFA::SINGLETON){
-            std::cerr << "ln " << node->line << ": while-loop conditional is not of boolean type" << std::endl;
+        else if(curr_type.first != grammarDFA::T_BOOL || curr_obj_class != grammarDFA::SINGLETON){
+            std::cerr << "ln " << node->line << ": while-loop conditional is not of boolean type (but is of type " <<
+            type_symbol2string(curr_type.second, curr_obj_class) << ")" << std::endl;
         }
     }
 
@@ -566,23 +653,34 @@ void semantic_analysis::visit(astFPARAMS* node){
 
 void semantic_analysis::visit(astFPARAM* node){
     string fparam_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
-    grammarDFA::Symbol fparam_type = ((astTYPE*) node->type)->type;
+    type_t fparam_type = type_t(((astTYPE*) node->type)->type, ((astTYPE*) node->type)->lexeme);
     grammarDFA::Symbol fparam_obj_class = ((astTYPE*) node->type)->object_class;
 
     symbol* fparam;
     if(fparam_obj_class == grammarDFA::SINGLETON){
         fparam = new varSymbol(&fparam_ident, fparam_type);
+
+        if(fparam_type.first == grammarDFA::T_TLSTRUCT){
+            symbol* ret_symbol = lookup_symbolTable->lookup(fparam_type.second);
+            lookup_symbolTable = curr_symbolTable;
+
+            if(ret_symbol != nullptr){
+                fparam->set_object(ret_symbol->object);
+            }else{
+                std::cerr << "ln " << node->line << ": tlstruct " << fparam_type.second << " has not been declared" << std::endl;
+            }
+        }
     }
     else{
         fparam = new arrSymbol(&fparam_ident, fparam_type, 0);
     }
 
-    if(fparam_type == grammarDFA::T_AUTO){
+    if(fparam_type.first == grammarDFA::T_AUTO){
         std::cerr << "ln " << node->line << ": identifier " << fparam_ident
         << " in function signature cannot have auto type specification" << std::endl;
     }
 
-    if(!symbolTable->insert(fparam)){
+    if(!curr_symbolTable->insert(fparam)){
         delete fparam;
 
         std::cerr << "ln " << node->line << ": identifier " << fparam_ident
@@ -592,18 +690,32 @@ void semantic_analysis::visit(astFPARAM* node){
 
 void semantic_analysis::visit(astFUNC_DECL* node){
     string func_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
-    grammarDFA::Symbol ret_type = ((astTYPE*) node->type)->type;
+    type_t ret_type = type_t(((astTYPE*) node->type)->type, ((astTYPE*) node->type)->lexeme);
     grammarDFA::Symbol ret_obj_class = ((astTYPE*) node->type)->object_class;
 
     auto* fparams = new vector<symbol*>(0);
     if(node->fparams != nullptr){
         for(auto &c : *((astFPARAMS*) node->fparams)->children){
             string obj_ident = ((astIDENTIFIER*) ((astFPARAM*) c)->children->at(0))->lexeme;
-            grammarDFA::Symbol obj_type = ((astTYPE*) ((astFPARAM*) c)->children->at(1))->type;
+            type_t obj_type = type_t(((astTYPE*) ((astFPARAM*) c)->children->at(1))->type,
+                                     ((astTYPE*) ((astFPARAM*) c)->children->at(1))->lexeme);
             grammarDFA::Symbol obj_class = ((astTYPE*) ((astFPARAM*) c)->children->at(1))->object_class;
 
             if(obj_class == grammarDFA::SINGLETON){
-                fparams->push_back(new varSymbol(&obj_ident, obj_type));
+                auto* var = new varSymbol(&obj_ident, obj_type);
+
+                if(obj_type.first == grammarDFA::T_TLSTRUCT){
+                    symbol* ret_symbol = lookup_symbolTable->lookup(obj_type.second);
+                    lookup_symbolTable = curr_symbolTable;
+
+                    if(ret_symbol != nullptr){
+                        var->set_object(ret_symbol->object);
+                    }else{
+                        std::cerr << "ln " << node->line << ": tlstruct " << obj_type.second << " has not been declared" << std::endl;
+                    }
+                }
+
+                fparams->push_back(var);
             }
             else{
                 fparams->push_back(new arrSymbol(&obj_ident, obj_type, 0));
@@ -613,7 +725,7 @@ void semantic_analysis::visit(astFUNC_DECL* node){
 
     auto* func = new funcSymbol(&func_ident, ret_type, ret_obj_class, fparams);
 
-    bool inserted = symbolTable->insert(func);
+    bool inserted = curr_symbolTable->insert(func);
     if(!inserted){
         std::cerr << "ln " << node->line << ": identifier " << func_ident <<
                   " has already been declared; possible redeclaration of function with signature ("
@@ -622,12 +734,12 @@ void semantic_analysis::visit(astFUNC_DECL* node){
 
     functionStack->push(make_pair(func, false));
 
-    symbolTable->push_scope();
+    curr_symbolTable->push_scope();
     if(node->fparams != nullptr){ node->fparams->accept(this);}
     for(auto &c : *((astBLOCK*) node->function_block)->children){
         c->accept(this);
     }
-    symbolTable->pop_scope();
+    curr_symbolTable->pop_scope();
 
     if(!functionStack->top().second){
         std::cerr << "ln " << node->line << ": function " << func_ident << "(" << typeVect_symbol2string(fparams)
@@ -636,7 +748,7 @@ void semantic_analysis::visit(astFUNC_DECL* node){
 
     functionStack->pop();
 
-    if(func->type == grammarDFA::T_AUTO){
+    if(func->type.first == grammarDFA::T_AUTO){
         std::cerr << "ln " << node->line << ": function " << func_ident << "(" << typeVect_symbol2string(fparams)
         << ") has type auto which cannot be resolved from the return statement (possible recursive call with no base case?)"
         << std::endl;
@@ -649,14 +761,35 @@ void semantic_analysis::visit(astFUNC_DECL* node){
     }
 }
 
+void semantic_analysis::visit(astMEMBER_ACCESS* node){
+    if(node->tls_name != nullptr){
+        string tls_ident = ((astIDENTIFIER*) node->tls_name)->lexeme;
+        symbol* ret_symbol = lookup_symbolTable->lookup(tls_ident);
+        lookup_symbolTable = curr_symbolTable;
+
+        if(ret_symbol != nullptr){
+            if((ret_symbol->type).first != grammarDFA::T_TLSTRUCT || ret_symbol->object_class != grammarDFA::SINGLETON){
+                std::cerr << "ln " << node->line << ": variable " << tls_ident << " is not a tlstruct type" << std::endl;
+            }
+            else if(node->member != nullptr){
+                lookup_symbolTable = get<symbol_table*>(get<literal_t>(ret_symbol->object));
+                node->member->accept(this);
+            }
+        }
+        else{
+            std::cerr << "ln " << node->line << ": identifier " << tls_ident << " has not been declared" << std::endl;
+        }
+    }
+}
+
 void semantic_analysis::visit(astBLOCK* node){
-    symbolTable->push_scope();
+    curr_symbolTable->push_scope();
 
     for(auto &c : *node->children){
         c->accept(this);
     }
 
-    symbolTable->pop_scope();
+    curr_symbolTable->pop_scope();
 }
 
 void semantic_analysis::visit(astPROGRAM* node){

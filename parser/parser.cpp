@@ -232,27 +232,27 @@ void parser::ruleSUBEXPR(astInnerNode* parent, lexer::Token* token_ptr){
 }
 
 void parser::ruleLITERAL_T_BOOL(astInnerNode* parent, lexer::Token* token_ptr){
-    parent->add_child(new astLITERAL(parent, token_ptr->lexeme, grammarDFA::T_BOOL, token_ptr->line));
+    parent->add_child(new astLITERAL(parent, token_ptr->lexeme, grammarDFA::T_BOOL, "bool", token_ptr->line));
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_BOOL});
 }
 
 void parser::ruleLITERAL_T_INT(astInnerNode* parent, lexer::Token* token_ptr){
-    parent->add_child(new astLITERAL(parent, token_ptr->lexeme, grammarDFA::T_INT, token_ptr->line));
+    parent->add_child(new astLITERAL(parent, token_ptr->lexeme, grammarDFA::T_INT, "int", token_ptr->line));
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_INT});
 }
 
 void parser::ruleLITERAL_T_FLOAT(astInnerNode* parent, lexer::Token* token_ptr){
-    parent->add_child(new astLITERAL(parent, token_ptr->lexeme, grammarDFA::T_FLOAT, token_ptr->line));
+    parent->add_child(new astLITERAL(parent, token_ptr->lexeme, grammarDFA::T_FLOAT, "float", token_ptr->line));
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_FLOAT});
 }
 
 void parser::ruleLITERAL_T_STRING(astInnerNode* parent, lexer::Token* token_ptr){
-    parent->add_child(new astLITERAL(parent, token_ptr->lexeme, grammarDFA::T_STRING, token_ptr->line));
+    parent->add_child(new astLITERAL(parent, token_ptr->lexeme, grammarDFA::T_STRING, "string", token_ptr->line));
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_STRING});
 }
 
 void parser::ruleLITERAL_T_CHAR(astInnerNode* parent, lexer::Token* token_ptr){
-    parent->add_child(new astLITERAL(parent, token_ptr->lexeme, grammarDFA::T_CHAR, token_ptr->line));
+    parent->add_child(new astLITERAL(parent, token_ptr->lexeme, grammarDFA::T_CHAR, "char", token_ptr->line));
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_CHAR});
 }
 
