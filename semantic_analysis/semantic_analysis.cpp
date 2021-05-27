@@ -327,6 +327,10 @@ void semantic_analysis::visit(astASSIGNMENT_IDENTIFIER* node){
                     << " of type " << type_symbol2string(obj_type.second, obj_class) <<
                     " cannot be assigned to an indeterminate type" << std::endl;
                 }
+                else if(obj_type.first == grammarDFA::T_AUTO && obj_class == curr_obj_class){
+                    symbol* ret_symbol = lookup_symbolTable->lookup(((astIDENTIFIER*) node->identifier)->lexeme);
+                    ret_symbol->type = curr_type;
+                }
                 else if(curr_type != obj_type || curr_obj_class != obj_class){
                     std::cerr << "ln " << node->line << ": variable " << ((astIDENTIFIER*) node->identifier)->lexeme
                     << " of type " << type_symbol2string(obj_type.second, obj_class)
@@ -410,9 +414,6 @@ void semantic_analysis::visit(astVAR_DECL* node){
             << " cannot be initialised a value of type " << type_symbol2string(curr_type.second, curr_obj_class) << std::endl;
         }
     }
-    else if(var_type.first == grammarDFA::T_AUTO){
-        std::cerr << "ln " << node->line << ": variable " << var_ident << " of type auto must be initialised" << std::endl;
-    }
 
     bool insert = true;
     varSymbol* var;
@@ -480,10 +481,6 @@ void semantic_analysis::visit(astARR_DECL* node){
                 " at index " << i - 3 << std::endl;
             }
         }
-    }
-
-    if(arr_type.first == grammarDFA::T_AUTO && node->n_children < 4){
-        std::cerr << "ln " << node->line << ": array " << arr_ident << "[] of type auto must be initialised" << std::endl;
     }
 
     auto* arr = new arrSymbol(&arr_ident, arr_type, 0);

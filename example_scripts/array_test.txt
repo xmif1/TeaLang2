@@ -80,3 +80,6 @@ print arr1[1];          // 6.25
 print XGreaterY(arr1);  // true
 print Average(arr2, 4); // 6.92
 print XGreaterY(2.0, 3.0);  // false
+
+let xyz:int;
+xyz[0] = 2;

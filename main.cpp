@@ -8,7 +8,7 @@
 #include "interpreter/interpreter.h"
 
 int main(){
-    std::ifstream source_file("/Users/xandrumifsud/Documents/Dev/TeaLang2/example_scripts/struct_test.txt");
+    std::ifstream source_file("/Users/xandrumifsud/Documents/Dev/TeaLang2/example_scripts/array_test.txt");
     std::stringstream source_buffer;
     source_buffer << source_file.rdbuf();
 

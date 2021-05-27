@@ -595,6 +595,10 @@ void interpreter::visit(astASSIGNMENT_IDENTIFIER* node){
 
     node->expression->accept(this);
 
+    if(ret_symb->type.first == grammarDFA::T_AUTO){
+        ret_symb->type = curr_type;
+    }
+
     if(curr_obj_class == grammarDFA::ARRAY && get<literal_arr_t>(curr_result)->size() != ((arrSymbol*) ret_symb)->size){
         std::cerr << "ln " << node->line << ": arrays have mismatched sizes " << get<literal_arr_t>(curr_result)->size()
         << " and " << ((arrSymbol*) ret_symb)->size << std::endl;
