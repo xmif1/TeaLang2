@@ -24,12 +24,11 @@ public:
 
 private:
     typedef void (parser::*production_rule)(astInnerNode*,  lexer::Token*);
-    typedef void (parser::*parse_error)(unsigned int);
+    typedef void (parser::*parse_error)(grammarDFA::Symbol, grammarDFA::Symbol, unsigned int);
 
     stack<State> state_stack;
     int err_count = 0;
 
-    void genericError(unsigned int);
     void rulePROGRAM(astInnerNode*,  lexer::Token*);
     void ruleBLOCK(astInnerNode*,  lexer::Token*);
     void ruleBLOCK_ext(astInnerNode*,  lexer::Token*);
@@ -109,9 +108,9 @@ private:
     void ruleTLS_DECL(astInnerNode*, lexer::Token*);
     void null_rule(astInnerNode*,  lexer::Token*);
     void optional_pass_rule(astInnerNode*,  lexer::Token*);
+    static void error_table(grammarDFA::Symbol, lexer::Token*);
     void panic_mode_recovery(lexer* lexer_ptr, lexer::Token*, State*);
-    static parser::production_rule parse_table(int, int, lexer*);
-    static parser::parse_error error_table(int, int);
+    static parser::production_rule parse_table(grammarDFA::Symbol, lexer::Token*, lexer*);
     static grammarDFA::Symbol type_string2symbol(const string &type);
 };
 

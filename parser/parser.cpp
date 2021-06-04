@@ -19,8 +19,7 @@ parser::parser(lexer* lexer_ptr){
     while(!state_stack.empty()){
         if(curr_state.symbol >= grammarDFA::n_NTS){
             if(curr_token.symbol != curr_state.symbol){
-                parser::parse_error err = error_table(curr_state.symbol, curr_token.symbol);
-                (this->*err)(curr_token.line);
+                error_table(curr_state.symbol, &curr_token);
 
                 panic_mode_recovery(lexer_ptr, &curr_token, &curr_state);
             }
@@ -35,11 +34,8 @@ parser::parser(lexer* lexer_ptr){
             }
         }
         else{
-            parser::production_rule pr = parse_table(curr_state.symbol, curr_token.symbol, lexer_ptr);
+            parser::production_rule pr = parse_table(curr_state.symbol, &curr_token, lexer_ptr);
             if(pr == nullptr){
-                parser::parse_error err = error_table(curr_state.symbol, curr_token.symbol);
-                (this->*err)(curr_token.line);
-
                 panic_mode_recovery(lexer_ptr, &curr_token, &curr_state);
             }
             else{
@@ -80,10 +76,6 @@ void parser::panic_mode_recovery(lexer* lexer_ptr, lexer::Token* curr_token, Sta
             }
         }
     }
-}
-
-void parser::genericError(unsigned int line){
-    std::cerr << "ln " << line << ": (generic) syntax error detected while parsing" << std::endl;
 }
 
 void parser::rulePROGRAM(astInnerNode* parent, lexer::Token* token_ptr){
@@ -554,12 +546,12 @@ void parser::optional_pass_rule(astInnerNode* parent, lexer::Token* token_ptr){
     parent->add_child(nullptr); // preserves ordering of positional optional symbols
 }
 
-parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol, lexer* lexer_ptr){
+parser::production_rule parser::parse_table(grammarDFA::Symbol curr_symbol, lexer::Token* curr_token, lexer* lexer_ptr){
     production_rule pr;
 
     switch(curr_symbol){
         case grammarDFA::PROGRAM:{
-            if(curr_tok_symbol == grammarDFA::T_EOF){
+            if(curr_token->symbol == grammarDFA::T_EOF){
                                                 pr = &parser::null_rule;
             }else{
                                                 pr = &parser::rulePROGRAM;
@@ -567,7 +559,7 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
         }                                                                                       break;
         case grammarDFA::BLOCK:                 pr = &parser::ruleBLOCK;                        break;
         case grammarDFA::BLOCK_ext:{
-            if(curr_tok_symbol == grammarDFA::T_RBRACE){
+            if(curr_token->symbol == grammarDFA::T_RBRACE){
                                                 pr = &parser::null_rule;
             }else{
                                                 pr = &parser::ruleBLOCK_ext;
@@ -586,21 +578,21 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
             }
         }                                                                                      break;
         case grammarDFA::VAR_DECL_ASSIGNMENT: {
-            if(curr_tok_symbol == grammarDFA::T_EQUALS){
+            if(curr_token->symbol == grammarDFA::T_EQUALS){
                                                 pr = &parser::ruleVAR_DECL_ASSIGNMENT;
             }else{
                                                 pr = &parser::null_rule;
             }
         }                                                                                       break;
         case grammarDFA::ARR_DECL_ASSIGNMENT: {
-            if(curr_tok_symbol == grammarDFA::T_EQUALS){
+            if(curr_token->symbol == grammarDFA::T_EQUALS){
                                                 pr = &parser::ruleARR_DECL_ASSIGNMENT;
             }else{
                                                 pr = &parser::null_rule;
             }
         }                                                                                       break;
         case grammarDFA::ARR_DECL_ASSIGNMENT_ext: {
-            if(curr_tok_symbol == grammarDFA::T_COMMA){
+            if(curr_token->symbol == grammarDFA::T_COMMA){
                                                 pr = &parser::ruleARR_DECL_ASSIGNMENT_ext;
             }else{
                                                 pr = &parser::null_rule;
@@ -639,7 +631,7 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
         }                                                                                       break;
         case grammarDFA::FPARAMS:               pr = &parser::ruleFPARAMS;                      break;
         case grammarDFA::FPARAMS_ext: {
-            if(curr_tok_symbol == grammarDFA::T_COMMA){
+            if(curr_token->symbol == grammarDFA::T_COMMA){
                                                 pr = &parser::ruleFPARAMS_ext_T_COMMA;
             }else{
                                                 pr = &parser::null_rule;
@@ -647,7 +639,7 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
         }                                                                                       break;
         case grammarDFA::APARAMS:               pr = &parser::ruleAPARAMS;                      break;
         case grammarDFA::APARAMS_ext: {
-            if(curr_tok_symbol == grammarDFA::T_COMMA){
+            if(curr_token->symbol == grammarDFA::T_COMMA){
                                                 pr = &parser::ruleAPARAMS_ext_T_COMMA;
             }else{
                                                 pr = &parser::null_rule;
@@ -655,25 +647,31 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
         }                                                                                       break;
         case grammarDFA::SUBEXPR:               pr = &parser::ruleSUBEXPR;                      break;
         case grammarDFA::LITERAL: {
-            switch(curr_tok_symbol){
+            switch(curr_token->symbol){
                 case grammarDFA::T_INT:         pr = &parser::ruleLITERAL_T_INT;                break;
                 case grammarDFA::T_BOOL:        pr = &parser::ruleLITERAL_T_BOOL;               break;
                 case grammarDFA::T_STRING:      pr = &parser::ruleLITERAL_T_STRING;             break;
                 case grammarDFA::T_FLOAT:       pr = &parser::ruleLITERAL_T_FLOAT;              break;
                 case grammarDFA::T_CHAR:        pr = &parser::ruleLITERAL_T_CHAR;               break;
-                default:                        pr = nullptr;
+                default: {                      pr = nullptr;
+                    std::cerr << "ln " << curr_token->line << ": expected bool, int, float, char, or string literal, read \""
+                    << curr_token->lexeme << "\" instead" << std::endl;
+                }
             }
         }                                                                                       break;
         case grammarDFA::UNARY: {
-            switch(curr_tok_symbol){
+            switch(curr_token->symbol){
                 case grammarDFA::T_MINUS:       pr = &parser::ruleUNARY_T_MINUS;                break;
                 case grammarDFA::T_NOT:         pr = &parser::ruleUNARY_T_NOT;                  break;
-                default:                        pr = nullptr;
+                default: {                      pr = nullptr;
+                    std::cerr << "ln " << curr_token->line << ": expected + or not operator, read \""
+                    << curr_token->lexeme << "\" instead" << std::endl;
+                }
             }
         }                                                                                       break;
         case grammarDFA::FUNC_CALL:             pr = &parser::ruleFUNC_CALL;                    break;
         case grammarDFA::FUNC_CALL_APARAMS: {
-            if(curr_tok_symbol == grammarDFA::T_RBRACKET){
+            if(curr_token->symbol == grammarDFA::T_RBRACKET){
                                                 pr = &parser::optional_pass_rule;
             }else{
                                                 pr = &parser::ruleFUNC_CALL_APARAMS;
@@ -681,7 +679,7 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
         }                                                                                       break;
         case grammarDFA::IF:                    pr = &parser::ruleIF;                           break;
         case grammarDFA::ELSE: {
-            if(curr_tok_symbol == grammarDFA::T_ELSE){
+            if(curr_token->symbol == grammarDFA::T_ELSE){
                                                 pr = &parser::ruleELSE_T_ELSE;
             }else{
                                                 pr = &parser::optional_pass_rule;
@@ -700,7 +698,7 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
             }
         }                                                                                       break;
         case grammarDFA::FUNC_DECL_FPARAMS: {
-            if(curr_tok_symbol == grammarDFA::T_RBRACKET){
+            if(curr_token->symbol == grammarDFA::T_RBRACKET){
                                                 pr = &parser::optional_pass_rule;
             }else{
                                                 pr = &parser::ruleFUNC_DECL_FPARAMS;
@@ -708,28 +706,30 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
         }                                                                                       break;
         case grammarDFA::FOR:                   pr = &parser::ruleFOR;                          break;
         case grammarDFA::FOR_DECL: {
-            if(curr_tok_symbol == grammarDFA::T_SEMICOLON){
+            if(curr_token->symbol == grammarDFA::T_SEMICOLON){
                                                 pr = &parser::optional_pass_rule;
             }else{
                                                 pr = &parser::ruleFOR_DECL;
             }
         }                                                                                       break;
         case grammarDFA::FOR_EXPRESSION: {
-            if(curr_tok_symbol == grammarDFA::T_SEMICOLON){
+            if(curr_token->symbol == grammarDFA::T_SEMICOLON){
                                                 pr = nullptr;
+
+                std::cerr << "ln " << curr_token->line << ": expected expression in for-loop (2nd argument)" << std::endl;
             }else{
                                                 pr = &parser::ruleFOR_EXPRESSION;
             }
         }                                                                                       break;
         case grammarDFA::FOR_ASSIGNMENT: {
-            if(curr_tok_symbol == grammarDFA::T_RBRACKET){
+            if(curr_token->symbol == grammarDFA::T_RBRACKET){
                                                 pr = &parser::optional_pass_rule;
             }else{
                                                 pr = &parser::ruleFOR_ASSIGNMENT;
             }
         }                                                                                       break;
         case grammarDFA::STATEMENT: {
-            switch(curr_tok_symbol){
+            switch(curr_token->symbol){
                 case grammarDFA::T_LET:         pr = &parser::ruleSTATEMENT_T_LET_DECL;         break;
                 case grammarDFA::T_IDENTIFIER:  {
                     lexer::Token peek_tokens[3];
@@ -759,11 +759,14 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
                 case grammarDFA::T_TYPE:        pr = &parser::ruleSTATEMENT_T_TYPE;             break;
                 case grammarDFA::T_LBRACE:      pr = &parser::ruleSTATEMENT_T_LBRACE;           break;
                 case grammarDFA::T_TLSTRUCT:    pr = &parser::ruleSTATEMENT_T_TLSTRUCT;         break;
-                default:                        pr = nullptr;
+                default: {                      pr = nullptr;
+                    std::cerr << "ln " << curr_token->line << ": expected statement (eg. variable declaration, return,"
+                    " for-loop, etc...), read \"" << curr_token->lexeme << "\" instead" << std::endl;
+                }
             }
         }                                                                                       break;
         case grammarDFA::FACTOR: {
-            switch(curr_tok_symbol){
+            switch(curr_token->symbol){
                 case grammarDFA::T_BOOL:
                 case grammarDFA::T_INT:
                 case grammarDFA::T_FLOAT:
@@ -790,13 +793,16 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
                                                 pr = &parser::ruleFACTOR_IDENTIFIER;
                     }
                 }                                                                               break;
-                default:                        pr = nullptr;
+                default: {                      pr = nullptr;
+                    std::cerr << "ln " << curr_token->line << ": expected literal or identifier to a variable/function/etc,"
+                    " read \"" << curr_token->lexeme << "\" instead" << std::endl;
+                }
             }
         }                                                                                       break;
         case grammarDFA::TERM:                  pr = &parser::ruleTERM;                         break;
         case grammarDFA::TERM_ext: {
-            if(curr_tok_symbol == grammarDFA::T_MUL || curr_tok_symbol == grammarDFA::T_DIV ||
-            curr_tok_symbol == grammarDFA::T_AND){
+            if(curr_token->symbol == grammarDFA::T_MUL || curr_token->symbol == grammarDFA::T_DIV ||
+            curr_token->symbol == grammarDFA::T_AND){
                                                 pr = &parser::ruleTERM_ext;
             }else{
                                                 pr = &parser::null_rule;
@@ -804,8 +810,8 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
         }                                                                                       break;
         case grammarDFA::S_EXPR:                pr = &parser::ruleS_EXPR;                       break;
         case grammarDFA::S_EXPR_ext: {
-            if(curr_tok_symbol == grammarDFA::T_PLUS || curr_tok_symbol == grammarDFA::T_MINUS ||
-               curr_tok_symbol == grammarDFA::T_OR){
+            if(curr_token->symbol == grammarDFA::T_PLUS || curr_token->symbol == grammarDFA::T_MINUS ||
+               curr_token->symbol == grammarDFA::T_OR){
                                                 pr = &parser::ruleS_EXPR_ext;
             }else{
                                                 pr = &parser::null_rule;
@@ -813,21 +819,21 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
         }                                                                                       break;
         case grammarDFA::EXPRESSION:            pr = &parser::ruleEXPRESSION;                   break;
         case grammarDFA::EXPRESSION_ext: {
-            if(curr_tok_symbol == grammarDFA::T_RELOP){
+            if(curr_token->symbol == grammarDFA::T_RELOP){
                                                 pr = &parser::ruleEXPRESSION_ext;
             }else{
                                                 pr = &parser::null_rule;
             }
         }                                                                                       break;
         case grammarDFA::TYPE_VAR:  {
-            if(curr_tok_symbol == grammarDFA::T_TYPE){
+            if(curr_token->symbol == grammarDFA::T_TYPE){
                 pr = &parser::ruleTYPE_VAR_T_TYPE;
             }else{
                 pr = &parser::ruleTYPE_VAR_T_IDENTIFIER;
             }
         }                                                                                       break;
         case grammarDFA::TYPE_ARR: {
-            if(curr_tok_symbol == grammarDFA::T_TYPE){
+            if(curr_token->symbol == grammarDFA::T_TYPE){
                 pr = &parser::ruleTYPE_ARR_T_TYPE;
             }else{
                 pr = &parser::ruleTYPE_ARR_T_IDENTIFIER;
@@ -852,14 +858,58 @@ parser::production_rule parser::parse_table(int curr_symbol, int curr_tok_symbol
         }                                                                                       break;
         case grammarDFA::MEMBER_ACCESS:         pr = &parser::ruleMEMBER_ACCESS;                break;
         case grammarDFA::TLS_DECL:              pr = &parser::ruleTLS_DECL;                     break;
-        default:                                pr = nullptr;
+        default: {                              pr = nullptr;
+            std::cerr << "ln " << curr_token->line << ": syntax error encountered (unexpected: \"" << curr_token->lexeme
+            << "\")" << std::endl;
+        }
     }
 
     return pr;
 }
 
-parser::parse_error parser::error_table(int curr_symbol, int curr_token){
-    return &parser::genericError;
+void parser::error_table(grammarDFA::Symbol curr_symbol, lexer::Token* curr_token){
+    string curr_symb_str;
+    switch(curr_symbol){
+        case grammarDFA::T_INT:
+        case grammarDFA::T_FLOAT:
+        case grammarDFA::T_CHAR:
+        case grammarDFA::T_STRING: curr_symb_str = "int, float, char, or string literal"; break;
+        case grammarDFA::T_AUTO: curr_symb_str = "\"auto\""; break;
+        case grammarDFA::T_MUL: curr_symb_str = "\"*\""; break;
+        case grammarDFA::T_DIV: curr_symb_str = R"("\")"; break;
+        case grammarDFA::T_PLUS: curr_symb_str = "\"+\""; break;
+        case grammarDFA::T_MINUS: curr_symb_str = "\"-\""; break;
+        case grammarDFA::T_EQUALS: curr_symb_str = "\"=\""; break;
+        case grammarDFA::T_RELOP: curr_symb_str = R"(relational operator eg. "<", "==", etc...)"; break;
+        case grammarDFA::T_LBRACKET: curr_symb_str = "\"(\""; break;
+        case grammarDFA::T_RBRACKET: curr_symb_str = "\")\""; break;
+        case grammarDFA::T_LBRACE: curr_symb_str = "\"{\""; break;
+        case grammarDFA::T_RBRACE: curr_symb_str = "\"}\""; break;
+        case grammarDFA::T_PERIOD: curr_symb_str = "\".\""; break;
+        case grammarDFA::T_COLON: curr_symb_str = "\":\""; break;
+        case grammarDFA::T_SEMICOLON: curr_symb_str = "\";\""; break;
+        case grammarDFA::T_COMMA: curr_symb_str = "\",\""; break;
+        case grammarDFA::T_IDENTIFIER: curr_symb_str = "identifier (to a variable, function, etc...)"; break;
+        case grammarDFA::T_AND: curr_symb_str = "\"and\""; break;
+        case grammarDFA::T_OR: curr_symb_str = "\"or\""; break;
+        case grammarDFA::T_NOT: curr_symb_str = "\"not\""; break;
+        case grammarDFA::T_BOOL: curr_symb_str = R"("true" or "false")"; break;
+        case grammarDFA::T_TYPE: curr_symb_str = R"(type eg. "int", "string", etc...)"; break;
+        case grammarDFA::T_LET: curr_symb_str = "\"let\""; break;
+        case grammarDFA::T_PRINT: curr_symb_str = "\"print\""; break;
+        case grammarDFA::T_RETURN: curr_symb_str = "\"return\""; break;
+        case grammarDFA::T_IF: curr_symb_str = "\"if\""; break;
+        case grammarDFA::T_ELSE: curr_symb_str = "\"else\""; break;
+        case grammarDFA::T_FOR: curr_symb_str = "\"for\""; break;
+        case grammarDFA::T_WHILE: curr_symb_str = "\"while\""; break;
+        case grammarDFA::T_LSQUARE: curr_symb_str = "\"[\""; break;
+        case grammarDFA::T_RSQUARE: curr_symb_str = "\"]\""; break;
+        case grammarDFA::T_TLSTRUCT: curr_symb_str = "\"tlstruct\""; break;
+        default: ;
+    }
+
+    std::cerr << "ln " << curr_token->line << ": expected " << curr_symb_str << ", read \"" << curr_token->lexeme
+              << "\" instead" << std::endl;
 }
 
 grammarDFA::Symbol parser::type_string2symbol(const string& type){

@@ -716,7 +716,7 @@ void interpreter::visit(astARR_DECL* node){
 
     int n_assignment_elts = node->n_children - 3;
     if(size < n_assignment_elts){
-        std::cerr << "ln " << node->line << ": cannot assign " << n_assignment_elts << " to array " << arr_ident <<
+        std::cerr << "ln " << node->line << ": cannot assign " << n_assignment_elts << " elements to array " << arr_ident <<
         " of size " << size << std::endl;
         throw std::runtime_error("Runtime errors encountered, see trace above.");
     }
