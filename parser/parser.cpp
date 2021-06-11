@@ -78,23 +78,34 @@ void parser::panic_mode_recovery(lexer* lexer_ptr, lexer::Token* curr_token, Sta
     }
 }
 
+// ----- PRODUCTION RULES -----
+
+/* The following are the production rules which are responsible for constructing the AST by creating new
+ * AST nodes appropriately, maintaining parent--child node references correctly. Also responsible for pushing
+ * onto the parsing stack the sequence of Symbol instances for the derivation expansion.
+ */
+
+// production rule for PROGRAM
 void parser::rulePROGRAM(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = parent, .symbol = grammarDFA::PROGRAM});
     state_stack.push({.parent = parent, .symbol = grammarDFA::STATEMENT});
 }
 
+// production rule for BLOCK
 void parser::ruleBLOCK(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_block = new astBLOCK(parent, token_ptr->line); parent->add_child(ast_block);
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_RBRACE});
-    state_stack.push({.parent = ast_block, .symbol = grammarDFA::BLOCK_ext});
+    state_stack.push({.parent = ast_block, .symbol = grammarDFA::BLOCK_ext}); // for sequence of STATEMENT production calls
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LBRACE});
 }
 
+// production rule for BLOCK in the case that the next token is not T_RBRACE (i.e. there is another STATEMENT inside the block)
 void parser::ruleBLOCK_ext(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = parent, .symbol = grammarDFA::BLOCK_ext});
     state_stack.push({.parent = parent, .symbol = grammarDFA::STATEMENT});
 }
 
+// production rule for VAR_DECL (with optional assignment expanding to VAR_DECL_ASSIGNMENT)
 void parser::ruleVAR_DECL(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_var_decl = new astVAR_DECL(parent, token_ptr->line); parent->add_child(ast_var_decl);
     state_stack.push({.parent = ast_var_decl, .symbol = grammarDFA::VAR_DECL_ASSIGNMENT});
@@ -103,11 +114,13 @@ void parser::ruleVAR_DECL(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = ast_var_decl, .symbol = grammarDFA::IDENTIFIER});
 }
 
+// subsequent production rule for VAR_DECL in case the optional assignment statement is included
 void parser::ruleVAR_DECL_ASSIGNMENT(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = parent, .symbol = grammarDFA::EXPRESSION});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_EQUALS});
 }
 
+// production rule for ARR_DECL (with optional assignment expanding to ARR_DECL_ASSIGNMENT)
 void parser::ruleARR_DECL(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_arr_decl = new astARR_DECL(parent, token_ptr->line); parent->add_child(ast_arr_decl);
     state_stack.push({.parent = ast_arr_decl, .symbol = grammarDFA::ARR_DECL_ASSIGNMENT});
@@ -119,20 +132,23 @@ void parser::ruleARR_DECL(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = ast_arr_decl, .symbol = grammarDFA::IDENTIFIER});
 }
 
+// subsequent production rule for ARR_DECL in case the optional assignment statement is included
 void parser::ruleARR_DECL_ASSIGNMENT(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_RBRACE});
-    state_stack.push({.parent = parent, .symbol = grammarDFA::ARR_DECL_ASSIGNMENT_ext});
+    state_stack.push({.parent = parent, .symbol = grammarDFA::ARR_DECL_ASSIGNMENT_ext}); // expands for every T_COMMA encountered
     state_stack.push({.parent = parent, .symbol = grammarDFA::EXPRESSION});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LBRACE});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_EQUALS});
 }
 
+// subsequent production rule for ARR_DECL_ASSIGNMENT which expands any T_COMMA encountered (allowing the specification of a list of elements)
 void parser::ruleARR_DECL_ASSIGNMENT_ext(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = parent, .symbol = grammarDFA::ARR_DECL_ASSIGNMENT_ext});
     state_stack.push({.parent = parent, .symbol = grammarDFA::EXPRESSION});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_COMMA});
 }
 
+// production rule for ASSIGNMENT for the sequence of tokens: T_IDENTIFIER T_EQUALS
 void parser::ruleASSIGNMENT_IDENTIFIER(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_assignment = new astASSIGNMENT_IDENTIFIER(parent, token_ptr->line); parent->add_child(ast_assignment);
     state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::EXPRESSION});
@@ -140,6 +156,7 @@ void parser::ruleASSIGNMENT_IDENTIFIER(astInnerNode* parent, lexer::Token* token
     state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::IDENTIFIER});
 }
 
+// production rule for ASSIGNMENT for the sequence of tokens: T_IDENTIFIER T_LSQUARE EXPRESSION T_RSQUARE T_EQUALS
 void parser::ruleASSIGNMENT_ELEMENT(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_assignment = new astASSIGNMENT_ELEMENT(parent, token_ptr->line); parent->add_child(ast_assignment);
     state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::EXPRESSION});
@@ -147,6 +164,7 @@ void parser::ruleASSIGNMENT_ELEMENT(astInnerNode* parent, lexer::Token* token_pt
     state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::ELEMENT});
 }
 
+// production rule for the ASSIGNMENT for the sequence of tokens: T_IDENTIFIER T_PERIOD <***> T_EQUALS
 void parser::ruleASSIGNMENT_MEMBER(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_assignment = new astASSIGNMENT_MEMBER(parent, token_ptr->line); parent->add_child(ast_assignment);
     state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::ASSIGNMENT});
@@ -154,18 +172,21 @@ void parser::ruleASSIGNMENT_MEMBER(astInnerNode* parent, lexer::Token* token_ptr
     state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::IDENTIFIER});
 }
 
+// production rule for PRINT
 void parser::rulePRINT(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_print = new astPRINT(parent, token_ptr->line);  parent->add_child(ast_print);
     state_stack.push({.parent = ast_print, .symbol = grammarDFA::EXPRESSION});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_PRINT});
 }
 
+// production rule for RETURN
 void parser::ruleRETURN(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_return = new astRETURN(parent, token_ptr->line); parent->add_child(ast_return);
     state_stack.push({.parent = ast_return, .symbol = grammarDFA::EXPRESSION});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_RETURN});
 }
 
+// production rule for WHILE
 void parser::ruleWHILE(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_while = new astWHILE(parent, token_ptr->line); parent->add_child(ast_while);
     state_stack.push({.parent = ast_while, .symbol = grammarDFA::BLOCK});
@@ -175,6 +196,7 @@ void parser::ruleWHILE(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_WHILE});
 }
 
+// production rule for FPARAM with subsequent to FPARAM_TYPE_ARR or FPARAM_TYPE_VAR
 void parser::ruleFPARAM(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_fparam = new astFPARAM(parent, token_ptr->line); parent->add_child(ast_fparam);
     state_stack.push({.parent = ast_fparam, .symbol = grammarDFA::FPARAM_TYPE});
@@ -182,12 +204,14 @@ void parser::ruleFPARAM(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = ast_fparam, .symbol = grammarDFA::IDENTIFIER});
 }
 
+// subsequent production for FPARAM in case the parameter declaration is an array
 void parser::ruleFPARAM_TYPE_ARR(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_RSQUARE});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LSQUARE});
     state_stack.push({.parent = parent, .symbol = grammarDFA::TYPE_ARR});
 }
 
+// subsequent production for FPARAM in case the parameter declaration is a variable
 void parser::ruleFPARAM_TYPE_VAR(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = parent, .symbol = grammarDFA::TYPE_VAR});
 }
