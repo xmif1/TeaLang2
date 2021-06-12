@@ -4,10 +4,16 @@
 
 #include "grammarDFA.h"
 
+/* Simple function which returns the corresponding Symbol based on the current state of the DFA. If the current state
+ * yields a Symbol instance other than T_IDENTIFIER, then a call to state_tok is equivalent to an access of final_state_tokens.
+ *
+ * Reserved words are treated by the DFA as an identifier, i.e. they are attributed a T_IDENTIFIER Symbol. Further
+ * distinction is made using this function, by checking the lexeme attributed with the token.
+ */
 grammarDFA::Symbol grammarDFA::state_tok(State state, string* lexeme){
     Symbol symbol = final_state_tokens[state];
 
-    if(symbol == T_IDENTIFIER){
+    if(symbol == T_IDENTIFIER){ // check if reserved word
         if(*lexeme == "and"){
             return T_AND;
         }
@@ -48,19 +54,22 @@ grammarDFA::Symbol grammarDFA::state_tok(State state, string* lexeme){
         else if(*lexeme == "tlstruct"){
             return T_TLSTRUCT;
         }
-        else{
+        else{ // otherwise if lexeme of T_IDENTIFIER is not a reserved word
             return symbol;
         }
     }
-    else{
+    else{ // otherwise, equivalent to call to final_state_tokens
         return symbol;
     }
 }
 
+// Simple wrapper to access the transition table using a state and a character, binding the character to the corresponding
+// transition type class
 grammarDFA::State grammarDFA::transition(State state, char c){
     return transition_table[state][get_transition_type(c)];
 }
 
+// Utility function that retrieves the transition type class of a character
 grammarDFA::TransitionType grammarDFA::get_transition_type(char c){
     if(c == 'n' || c == 't' || c == 'r' || c == 'b' || c == 'f' || c == 'v'){
         return ESC;

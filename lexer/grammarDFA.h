@@ -10,6 +10,16 @@ using namespace std;
 
 class grammarDFA{
 public:
+    /* The following three enum types represent, respectively:
+     * (i)   The set of states of the DFA.
+     * (ii)  The transition type classes which partitions the input character set.
+     * (iii) The set of terminal and non-terminal symbols which attribute some semantic meaning.
+     *
+     * All of these are detailed in the project report. The choice of use of enums is two-fold:
+     * (i)   Much easier to attribute meaning to keywords rather than to numbers, making the code more readable.
+     * (ii)  The enums are used to index 1D and 2D arrays serving as look--up tables (such as eg. the transition table).
+     */
+
     enum State{
         S0, S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, S12, S13, S14, S15, S16, S17, S18, S19, S20, S21, S22, S23,
         S24, S25, S26, S27, S28, S29, S30, S31, S32, S33, S34, S_E
@@ -34,13 +44,23 @@ public:
         T_LSQUARE, T_RSQUARE, T_TLSTRUCT
     };
 
+    // maintain counts for array size declaration and indexing purposes
     const static int n_NTS = 48, n_token_types = 38;
 
     Symbol state_tok(State, string*);
     State transition(State, char);
 private:
+    // maintain counts for array size declaration and indexing purposes
     const static int n_states = 37, n_delta_types = 28;
 
+    /* The following defines the transition table for the DFA, where:
+     * (i)   the row defines the current state from which we are transitioning off of,
+     * (ii)  the column define the transition type class (to which characters are bound) with which to transition,
+     * (iii) and the entry at a (row, column) entry gives the state transitioned to from the given state corresponding
+     *       to row and the transition type class corresponding to column.
+     *
+     * S_E is the error state, used so that we have a total transition function.
+     */
     const State transition_table[n_states][n_delta_types] = {
    // LETTER| ESC|ZERO| DIGIT| PRINT.| '_'| '.'| ':'| ';'| '"'| '*'| '/'| '\'| '('| ')'| '{'| '}'| '='|'<''>'| '!'| '+'| '-'|'\n'| ','|'\0'| '''| '['| ']'|
      {    S1,  S1,  S2,    S2,    S_E,  S1, S24, S25, S26,  S5, S17, S12, S_E, S20, S21, S22, S23, S10,    S8,  S9, S18, S19, S_E, S27, S28, S29, S33, S34}, // S0  -> T_INVALID
@@ -81,6 +101,9 @@ private:
      {   S_E, S_E, S_E,   S_E,    S_E, S_E, S_E, S_E, S_E, S_E, S_E, S_E, S_E, S_E, S_E, S_E, S_E, S_E,   S_E, S_E, S_E, S_E, S_E, S_E, S_E, S_E, S_E, S_E}  // S_E -> T_INVALID
     };
 
+    /* Utility function which binds a state of the DFA to a terminal Symbol instance. In particular, if the state is not
+     * a final state, then the state is bound to the T_INVALID symbol.
+     */
     const Symbol final_state_tokens[n_states] = {T_INVALID, T_IDENTIFIER, T_INT, T_INVALID, T_FLOAT, T_INVALID, T_INVALID,
                                                  T_STRING, T_RELOP, T_INVALID, T_EQUALS, T_RELOP, T_DIV, T_INVALID,
                                                  T_INVALID, T_INVALID, T_COMMENT, T_MUL, T_PLUS, T_MINUS, T_LBRACKET,
