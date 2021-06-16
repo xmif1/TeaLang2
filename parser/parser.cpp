@@ -4,7 +4,22 @@
 
 #include "parser.h"
 
+/* In principle stack based parsing works by maintaining a stack of Symbol instances, such that whenever a token is
+ * fetched, either:
+ * (i)  the Symbol at the top of the stack is terminal, in which case it is popped from the stack and if it does not
+ *      match the Symbol in the fetched token (i.e. the fetched token was unexpected and hence the program is syntactically
+ *      incorrect), an appropriate syntax error is reported,
+ * (ii) or the Symbol at the top of the stack is non--terminal, in which case is it popped as before and if no production
+ *      rule is associated with the pair consisting of this Symbol and the terminal Symbol, then the program is
+ *      syntactically incorrect and an appropriate syntax error is reported.
+ *
+ * Our implementation is a slight derivation of the above -- rather than simply maintaining a Symbol instance on the stack,
+ * we maintain a pair consisting of a pointer to an astNode instance, along with a Symbol instance, allowing the building
+ * of an abstract syntax tree.
+ */
 parser::parser(lexer* lexer_ptr){
+    // initialise, pushing T_EOF on the stack to terminate when EOF of source reached, initialise token instance and
+    // define root of AST (which is always an astPROGRAM instance)
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_EOF});
     root = new astPROGRAM(nullptr, 1);
     State curr_state = {.parent = root, .symbol = grammarDFA::PROGRAM};
@@ -17,10 +32,12 @@ parser::parser(lexer* lexer_ptr){
     }while(curr_token.symbol == grammarDFA::T_COMMENT);
 
     while(!state_stack.empty()){
+        // if symbol on top of the stack is a terminal symbol (n_NTS = number of Non-Terminal Symbols, indexed from 0 to n_NTS - 1)
         if(curr_state.symbol >= grammarDFA::n_NTS){
             if(curr_token.symbol != curr_state.symbol){
+                // report syntax error
                 error_table(curr_state.symbol, &curr_token);
-
+                // and perform panic--mode recovery
                 panic_mode_recovery(lexer_ptr, &curr_token, &curr_state);
             }
             else{
@@ -30,28 +47,46 @@ parser::parser(lexer* lexer_ptr){
                     }
                 }while(curr_token.symbol == grammarDFA::T_COMMENT);
 
+                // maintain astNode* and Symbol pair on top of the stack, and pop
                 curr_state = state_stack.top(); state_stack.pop();
             }
         }
-        else{
+        else{ // otherwise symbol on top of the stack is a non-terminal symbol
             parser::production_rule pr = parse_table(curr_state.symbol, &curr_token, lexer_ptr);
             if(pr == nullptr){
+                // perform panic--mode recovery
                 panic_mode_recovery(lexer_ptr, &curr_token, &curr_state);
             }
             else{
                 (this->*pr)(curr_state.parent, &curr_token); // execute fetched production rule
+
+                // maintain astNode* and Symbol pair on top of the stack, and pop
                 curr_state = state_stack.top(); state_stack.pop();
             }
         }
     }
 }
 
-// useful explanation at https://www.cs.clemson.edu/course/cpsc827/material/LLk/LL%20Error%20Recovery.pdf
-void parser::panic_mode_recovery(lexer* lexer_ptr, lexer::Token* curr_token, State* curr_state){
-    err_count++;
+// -----ERROR RECOVERY-----
 
+// Useful explanation at https://www.cs.clemson.edu/course/cpsc827/material/LLk/LL%20Error%20Recovery.pdf
+
+/* Whenever a syntax error is encountered during parsing, our parser must do two operations:
+ * (i)  report the error with as much information as possible, to aid debugging,
+ * (ii) and decide what to do next.
+ *
+ * There are a number of error recovery strategies which we outline in the project documentation. We use here panic mode
+ * recovery, allowing multiple syntax errors to be reported in a single pass.
+ */
+void parser::panic_mode_recovery(lexer* lexer_ptr, lexer::Token* curr_token, State* curr_state){
+    err_count++; // maintain count of the number of errors encountered; if > 0, interpreter is not run
+
+    /* Our choice of set of synchronisation tokens is simply the T_SEMICOLON token. The choice of Symbol instances for
+     * synchronisation generally includes special characters such as delimiters which have a well defined meaning, from
+     * which parsing can continue correctly.
+     */
     while(curr_state->symbol != grammarDFA::T_SEMICOLON && curr_state->symbol != grammarDFA::T_EOF){
-        *curr_state = state_stack.top(); state_stack.pop();
+        *curr_state = state_stack.top(); state_stack.pop(); // pop off top of stack until synchronisation token reached
     }
 
     if(curr_state->symbol == grammarDFA::T_EOF){ // recovery failed, reached end of stack
@@ -61,7 +96,11 @@ void parser::panic_mode_recovery(lexer* lexer_ptr, lexer::Token* curr_token, Sta
         curr_token->line = -1;
     }
     else{
+        /* Note that at this point, curr_state->symbol = T_SEMICOLON; this code is technically agnostic from the choice of
+         * synchronisation tokens made, meaning that further synchronisation tokens can be added with relative ease.
+         */
         while(curr_token->symbol != curr_state->symbol && curr_token->symbol != grammarDFA::T_EOF) {
+            // fetch tokens until symbol matches T_SEMICOLON i.e. curr_state->symbol
             if(!(*lexer_ptr).getNextToken(curr_token)){
                 throw std::runtime_error("Lexer encountered an error while fetching the next token...exiting..."); // how to report useful information on the error?
             }
@@ -83,29 +122,34 @@ void parser::panic_mode_recovery(lexer* lexer_ptr, lexer::Token* curr_token, Sta
 /* The following are the production rules which are responsible for constructing the AST by creating new
  * AST nodes appropriately, maintaining parent--child node references correctly. Also responsible for pushing
  * onto the parsing stack the sequence of Symbol instances for the derivation expansion.
+ *
+ * The execution of a production_rule instance typically involves:
+ * 1. Creates a new astNode and populating it with any syntactic and meta--data, with the parent reference of the new
+ *    astNode set to the pointer passed as a parameter to the production_rule.
+ * 2. Occasionally, it may re--structure the abstract syntax tree eg. so that the nodes representing the operands of a
+ *    binary operation are always children of the node representing the binary operation.
+ * 3. A number of Symbol instances paired with a reference to an astNode (typically either the newly created astNode or
+ *    the reference passed as a parameter to the production_rule) are pushed onto the parsing stack (which is the
+ *    expansion of the production rule).
  */
 
-// production rule for PROGRAM
 void parser::rulePROGRAM(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = parent, .symbol = grammarDFA::PROGRAM});
     state_stack.push({.parent = parent, .symbol = grammarDFA::STATEMENT});
 }
 
-// production rule for BLOCK
 void parser::ruleBLOCK(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_block = new astBLOCK(parent, token_ptr->line); parent->add_child(ast_block);
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_RBRACE});
-    state_stack.push({.parent = ast_block, .symbol = grammarDFA::BLOCK_ext}); // for sequence of STATEMENT production calls
+    state_stack.push({.parent = ast_block, .symbol = grammarDFA::BLOCK_ext});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LBRACE});
 }
 
-// production rule for BLOCK in the case that the next token is not T_RBRACE (i.e. there is another STATEMENT inside the block)
 void parser::ruleBLOCK_ext(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = parent, .symbol = grammarDFA::BLOCK_ext});
     state_stack.push({.parent = parent, .symbol = grammarDFA::STATEMENT});
 }
 
-// production rule for VAR_DECL (with optional assignment expanding to VAR_DECL_ASSIGNMENT)
 void parser::ruleVAR_DECL(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_var_decl = new astVAR_DECL(parent, token_ptr->line); parent->add_child(ast_var_decl);
     state_stack.push({.parent = ast_var_decl, .symbol = grammarDFA::VAR_DECL_ASSIGNMENT});
@@ -114,13 +158,11 @@ void parser::ruleVAR_DECL(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = ast_var_decl, .symbol = grammarDFA::IDENTIFIER});
 }
 
-// subsequent production rule for VAR_DECL in case the optional assignment statement is included
 void parser::ruleVAR_DECL_ASSIGNMENT(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = parent, .symbol = grammarDFA::EXPRESSION});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_EQUALS});
 }
 
-// production rule for ARR_DECL (with optional assignment expanding to ARR_DECL_ASSIGNMENT)
 void parser::ruleARR_DECL(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_arr_decl = new astARR_DECL(parent, token_ptr->line); parent->add_child(ast_arr_decl);
     state_stack.push({.parent = ast_arr_decl, .symbol = grammarDFA::ARR_DECL_ASSIGNMENT});
@@ -132,7 +174,6 @@ void parser::ruleARR_DECL(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = ast_arr_decl, .symbol = grammarDFA::IDENTIFIER});
 }
 
-// subsequent production rule for ARR_DECL in case the optional assignment statement is included
 void parser::ruleARR_DECL_ASSIGNMENT(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_RBRACE});
     state_stack.push({.parent = parent, .symbol = grammarDFA::ARR_DECL_ASSIGNMENT_ext}); // expands for every T_COMMA encountered
@@ -141,14 +182,12 @@ void parser::ruleARR_DECL_ASSIGNMENT(astInnerNode* parent, lexer::Token* token_p
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_EQUALS});
 }
 
-// subsequent production rule for ARR_DECL_ASSIGNMENT which expands any T_COMMA encountered (allowing the specification of a list of elements)
 void parser::ruleARR_DECL_ASSIGNMENT_ext(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = parent, .symbol = grammarDFA::ARR_DECL_ASSIGNMENT_ext});
     state_stack.push({.parent = parent, .symbol = grammarDFA::EXPRESSION});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_COMMA});
 }
 
-// production rule for ASSIGNMENT for the sequence of tokens: T_IDENTIFIER T_EQUALS
 void parser::ruleASSIGNMENT_IDENTIFIER(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_assignment = new astASSIGNMENT_IDENTIFIER(parent, token_ptr->line); parent->add_child(ast_assignment);
     state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::EXPRESSION});
@@ -156,7 +195,6 @@ void parser::ruleASSIGNMENT_IDENTIFIER(astInnerNode* parent, lexer::Token* token
     state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::IDENTIFIER});
 }
 
-// production rule for ASSIGNMENT for the sequence of tokens: T_IDENTIFIER T_LSQUARE EXPRESSION T_RSQUARE T_EQUALS
 void parser::ruleASSIGNMENT_ELEMENT(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_assignment = new astASSIGNMENT_ELEMENT(parent, token_ptr->line); parent->add_child(ast_assignment);
     state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::EXPRESSION});
@@ -164,7 +202,6 @@ void parser::ruleASSIGNMENT_ELEMENT(astInnerNode* parent, lexer::Token* token_pt
     state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::ELEMENT});
 }
 
-// production rule for the ASSIGNMENT for the sequence of tokens: T_IDENTIFIER T_PERIOD <***> T_EQUALS
 void parser::ruleASSIGNMENT_MEMBER(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_assignment = new astASSIGNMENT_MEMBER(parent, token_ptr->line); parent->add_child(ast_assignment);
     state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::ASSIGNMENT});
@@ -172,21 +209,18 @@ void parser::ruleASSIGNMENT_MEMBER(astInnerNode* parent, lexer::Token* token_ptr
     state_stack.push({.parent = ast_assignment, .symbol = grammarDFA::IDENTIFIER});
 }
 
-// production rule for PRINT
 void parser::rulePRINT(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_print = new astPRINT(parent, token_ptr->line);  parent->add_child(ast_print);
     state_stack.push({.parent = ast_print, .symbol = grammarDFA::EXPRESSION});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_PRINT});
 }
 
-// production rule for RETURN
 void parser::ruleRETURN(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_return = new astRETURN(parent, token_ptr->line); parent->add_child(ast_return);
     state_stack.push({.parent = ast_return, .symbol = grammarDFA::EXPRESSION});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_RETURN});
 }
 
-// production rule for WHILE
 void parser::ruleWHILE(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_while = new astWHILE(parent, token_ptr->line); parent->add_child(ast_while);
     state_stack.push({.parent = ast_while, .symbol = grammarDFA::BLOCK});
@@ -196,7 +230,6 @@ void parser::ruleWHILE(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_WHILE});
 }
 
-// production rule for FPARAM with subsequent to FPARAM_TYPE_ARR or FPARAM_TYPE_VAR
 void parser::ruleFPARAM(astInnerNode* parent, lexer::Token* token_ptr){
     auto* ast_fparam = new astFPARAM(parent, token_ptr->line); parent->add_child(ast_fparam);
     state_stack.push({.parent = ast_fparam, .symbol = grammarDFA::FPARAM_TYPE});
@@ -204,14 +237,12 @@ void parser::ruleFPARAM(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = ast_fparam, .symbol = grammarDFA::IDENTIFIER});
 }
 
-// subsequent production for FPARAM in case the parameter declaration is an array
 void parser::ruleFPARAM_TYPE_ARR(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_RSQUARE});
     state_stack.push({.parent = nullptr, .symbol = grammarDFA::T_LSQUARE});
     state_stack.push({.parent = parent, .symbol = grammarDFA::TYPE_ARR});
 }
 
-// subsequent production for FPARAM in case the parameter declaration is a variable
 void parser::ruleFPARAM_TYPE_VAR(astInnerNode* parent, lexer::Token* token_ptr){
     state_stack.push({.parent = parent, .symbol = grammarDFA::TYPE_VAR});
 }
@@ -570,6 +601,11 @@ void parser::optional_pass_rule(astInnerNode* parent, lexer::Token* token_ptr){
     parent->add_child(nullptr); // preserves ordering of positional optional symbols
 }
 
+/* The parse_table function mimics the production table, returning a pointer to a production_rule type function which
+ * can be subsequently called. Rather than represent as a table with lookahead symbols, we use a series of switch
+ * statements. In the case that no production rule is found for a given Symbol and Token pair, a nullptr is returned,
+ * indicating an error.
+ */
 parser::production_rule parser::parse_table(grammarDFA::Symbol curr_symbol, lexer::Token* curr_token, lexer* lexer_ptr){
     production_rule pr;
 
@@ -591,6 +627,7 @@ parser::production_rule parser::parse_table(grammarDFA::Symbol curr_symbol, lexe
         }                                                                                       break;
         case grammarDFA::DECL: {
             lexer::Token peek_token;
+            // peek 1 token (if available) and return corresponding production rule
             if(!(*lexer_ptr).peekTokens(&peek_token, 1)){
                 throw std::runtime_error("Lexer encountered an error while peeking tokens...exiting...");
             }
@@ -624,6 +661,7 @@ parser::production_rule parser::parse_table(grammarDFA::Symbol curr_symbol, lexe
         }                                                                                       break;
         case grammarDFA::ASSIGNMENT: {
             lexer::Token peek_token;
+            // peek 1 token (if available) and return corresponding production rule
             if(!(*lexer_ptr).peekTokens(&peek_token, 1)){
                 throw std::runtime_error("Lexer encountered an error while peeking tokens...exiting...");
             }
@@ -642,6 +680,7 @@ parser::production_rule parser::parse_table(grammarDFA::Symbol curr_symbol, lexe
         case grammarDFA::WHILE:                 pr = &parser::ruleWHILE;                        break;
         case grammarDFA::FPARAM:                pr = &parser::ruleFPARAM;                       break;
         case grammarDFA::FPARAM_TYPE: {
+            // peek 1 token (if available) and return corresponding production rule
             lexer::Token peek_token;
             if(!(*lexer_ptr).peekTokens(&peek_token, 1)){
                 throw std::runtime_error("Lexer encountered an error while peeking tokens...exiting...");
@@ -711,6 +750,7 @@ parser::production_rule parser::parse_table(grammarDFA::Symbol curr_symbol, lexe
         }                                                                                       break;
         case grammarDFA::FUNC_DECL: {
             lexer::Token peek_token;
+            // peek 1 token (if available) and return corresponding production rule
             if(!(*lexer_ptr).peekTokens(&peek_token, 1)){
                 throw std::runtime_error("Lexer encountered an error while peeking tokens...exiting...");
             }
@@ -756,6 +796,9 @@ parser::production_rule parser::parse_table(grammarDFA::Symbol curr_symbol, lexe
             switch(curr_token->symbol){
                 case grammarDFA::T_LET:         pr = &parser::ruleSTATEMENT_T_LET_DECL;         break;
                 case grammarDFA::T_IDENTIFIER:  {
+                    // peek 3 tokens (if available) and return corresponding production rule
+                    // this is the production expansion which we mentioned in the documentation that we believe could
+                    // be reduced to k = 2
                     lexer::Token peek_tokens[3];
                     if(!(*lexer_ptr).peekTokens(peek_tokens, 3)){
                         throw std::runtime_error("Lexer encountered an error while peeking tokens...exiting...");
@@ -800,6 +843,7 @@ parser::production_rule parser::parse_table(grammarDFA::Symbol curr_symbol, lexe
                 case grammarDFA::T_MINUS:
                 case grammarDFA::T_NOT:         pr = &parser::ruleFACTOR_UNARY;                 break;
                 case grammarDFA::T_IDENTIFIER: {
+                    // peek 1 token (if available) and return corresponding production rule
                     lexer::Token peek_token;
                     if(!(*lexer_ptr).peekTokens(&peek_token, 1)){
                         throw std::runtime_error("Lexer encountered an error while peeking tokens...exiting...");
@@ -866,6 +910,7 @@ parser::production_rule parser::parse_table(grammarDFA::Symbol curr_symbol, lexe
         case grammarDFA::IDENTIFIER:            pr = &parser::ruleIDENTIFIER;                   break;
         case grammarDFA::ELEMENT:               pr = &parser::ruleELEMENT;                      break;
         case grammarDFA::MEMBER: {
+            // peek 1 token (if available) and return corresponding production rule
             lexer::Token peek_token;
             if(!(*lexer_ptr).peekTokens(&peek_token, 1)){
                 throw std::runtime_error("Lexer encountered an error while peeking tokens...exiting...");
@@ -891,6 +936,10 @@ parser::production_rule parser::parse_table(grammarDFA::Symbol curr_symbol, lexe
     return pr;
 }
 
+/* Utility function for generating (primitive but indicative) syntax errors, by reporting the line number, a textual
+ * message/representation associated with the current Symbol instance, and the lexeme of the associated Token instance,
+ * for the (Symbol, Token) pair for which we cannot find a valid production rule expansion.
+ */
 void parser::error_table(grammarDFA::Symbol curr_symbol, lexer::Token* curr_token){
     string curr_symb_str;
     switch(curr_symbol){
@@ -936,6 +985,7 @@ void parser::error_table(grammarDFA::Symbol curr_symbol, lexer::Token* curr_toke
               << "\" instead" << std::endl;
 }
 
+// Convenience function for converting a type lexeme to the corresponding Symbol instance.
 grammarDFA::Symbol parser::type_string2symbol(const string& type){
     if(type == "bool"){
         return grammarDFA::T_BOOL;

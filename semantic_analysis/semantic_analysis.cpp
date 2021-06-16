@@ -4,7 +4,7 @@
 
 #include "semantic_analysis.h"
 
-// for section on error recovery, see:
+// For section on error recovery, see:
 // https://people.montefiore.uliege.be/geurts/Cours/compil/2015/04-semantic-2015-2016.pdf
 
 // also note that TeaLang does not do any implicit typecasting; this must be kept in mind during curr_type--checking

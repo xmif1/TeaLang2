@@ -13,7 +13,12 @@
 
 class parser{
 public:
-    struct State{
+    /* Rather than simply maintaining a Symbol instance on the stack, we maintain a pair consisting of a pointer to an
+     * astNode instance (corresponding to a parent node in the abstract syntax tree), along with a Symbol instance. In
+     * some instances, if the Symbol instance bares no further syntactic meaning in the abstract syntax tree, a nullptr
+     * is maintained in the pair, rather than a astNode instance.
+     */
+     struct State{
         astInnerNode* parent;
         grammarDFA::Symbol symbol;
     };
@@ -24,6 +29,10 @@ public:
     explicit parser(lexer* lexer_ptr);
 
 private:
+    /* The production_rule} type is a functional pointer definition of void return, with two parameters: a pointer to an
+     * astNode instance and a pointer to a Token instance, both of which are used to construct the abstract syntax tree
+     * and populate it with any syntactic and metadata as necessary.
+     */
     typedef void (parser::*production_rule)(astInnerNode*,  lexer::Token*);
     typedef void (parser::*parse_error)(grammarDFA::Symbol, grammarDFA::Symbol, unsigned int);
 
