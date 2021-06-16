@@ -20,4 +20,6 @@ add_executable(TeaLang2 main.cpp
                         semantic_analysis/semantic_analysis.h
                         interpreter/interpreter.cpp
                         interpreter/interpreter.h
+                        semantic_analysis/graphviz_example/graphviz_ast_visitor.cpp
+                        semantic_analysis/graphviz_example/graphviz_ast_visitor.h
         )

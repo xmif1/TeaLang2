@@ -4,7 +4,7 @@
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "semantic_analysis/semantic_analysis.h"
-// #include "semantic_analysis/graphviz_example/graphviz_ast_visitor.h"
+#include "semantic_analysis/graphviz_example/graphviz_ast_visitor.h"
 #include "interpreter/interpreter.h"
 
 int main(int argc, char *argv[]){
@@ -27,8 +27,10 @@ int main(int argc, char *argv[]){
     auto* lex = new lexer(source_buffer.str());
     auto* par = new parser(lex);
 
-    // auto* gav = new graphviz_ast_visitor();
-    // par->root->accept(gav);
+    if(graphviz_on){
+        auto *gav = new graphviz_ast_visitor();
+        par->root->accept(gav);
+    }
 
     auto* sa = new semantic_analysis();
     par->root->accept(sa);
@@ -43,7 +45,3 @@ int main(int argc, char *argv[]){
 
     return 0;
 }
-
-/* semantic_analysis/graphviz_example/graphviz_ast_visitor.cpp
-                        semantic_analysis/graphviz_example/graphviz_ast_visitor.h
-                         */

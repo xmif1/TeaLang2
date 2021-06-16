@@ -89,14 +89,22 @@ void graphviz_ast_visitor::visit(astASSIGNMENT_ELEMENT *node){
     node->expression->accept(this);
 }
 
+void graphviz_ast_visitor::visit(astASSIGNMENT_MEMBER *node){
+    outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->tls_name->getLabel() << "\"" << std::endl;
+    outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->assignment->getLabel() << "\"" << std::endl;
+
+    node->tls_name->accept(this);
+    node->assignment->accept(this);
+}
+
 void graphviz_ast_visitor::visit(astVAR_DECL *node){
     outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->identifier->getLabel() << "\"" << std::endl;
     outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->type->getLabel() << "\"" << std::endl;
-    outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->expression->getLabel() << "\"" << std::endl;
+    if(node->expression != nullptr){ outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->expression->getLabel() << "\"" << std::endl;}
     
     node->identifier->accept(this);
     node->type->accept(this);
-    node->expression->accept(this);
+    if(node->expression != nullptr){node->expression->accept(this);}
 }
 
 void graphviz_ast_visitor::visit(astARR_DECL *node){
@@ -107,6 +115,14 @@ void graphviz_ast_visitor::visit(astARR_DECL *node){
     for(auto &c : *node->children){
         c->accept(this);
     }
+}
+
+void graphviz_ast_visitor::visit(astTLS_DECL *node){
+    outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->identifier->getLabel() << "\"" << std::endl;
+    outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->tls_block->getLabel() << "\"" << std::endl;
+
+    node->identifier->accept(this);
+    node->tls_block->accept(this);
 }
 
 void graphviz_ast_visitor::visit(astPRINT *node){
@@ -179,6 +195,14 @@ void graphviz_ast_visitor::visit(astFUNC_DECL *node){
     node->identifier->accept(this);
     if(node->fparams != nullptr){ node->fparams->accept(this);}
     node->function_block->accept(this);
+}
+
+void graphviz_ast_visitor::visit(astMEMBER_ACCESS *node){
+    outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->tls_name->getLabel() << "\"" << std::endl;
+    outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->member->getLabel() << "\"" << std::endl;
+
+    node->tls_name->accept(this);
+    node->member->accept(this);
 }
 
 void graphviz_ast_visitor::visit(astBLOCK *node){
