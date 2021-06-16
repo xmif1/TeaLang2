@@ -41,6 +41,8 @@ public:
     void visit(astBLOCK* node) override;
     void visit(astPROGRAM* node) override;
 
+    int err_count = 0;
+
 private:
     stack<pair<funcSymbol*, bool>>* functionStack = new stack<pair<funcSymbol*, bool>>; // 2nd used to check if func returns
     symbol_table* curr_symbolTable = new symbol_table(nullptr);

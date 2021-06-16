@@ -70,6 +70,10 @@ public:
     };
 };
 
+/* The arrSymbol class maintains further meta--data than the symbol class. In particular we maintain an integer
+ * specifying the initialised size of the array, which is used during the interpretation phase for checking that element
+ * access is within range, raising a runtime error as necessary.
+ */
 class arrSymbol: public symbol{
 public:
     int size;
@@ -80,6 +84,11 @@ public:
     };
 };
 
+/* The tlsSymbol class maintains further meta--data than the symbol class. In particular we maintain a pointer to an
+ * astBLOCK instance, corresponding to the tlstruct definition block, for traversal whenever an instance of a define
+ * tlstruct is declared (allowing the construction of a new symbol table representing the internal state of the tlsstruct
+ * instance).
+ */
 class tlsSymbol: public symbol{
 public:
     astBLOCK* tls_ref;
@@ -93,6 +102,12 @@ public:
     }
 };
 
+/* The funcSymbol class maintains further meta--data than the symbol class. In particular we maintain:
+ * (i)  a vector of pointers to varSymbol instances, which maintain the name and type of each function parameter (i.e.
+ *      defines the function signature)
+ * (ii) a pointer to an astBLOCK instance, corresponding to the function block, for traversal during subsequent function
+ *      calls during the interpretation phase.
+ */
 class funcSymbol: public symbol{
 public:
     grammarDFA::Symbol ret_obj_class;

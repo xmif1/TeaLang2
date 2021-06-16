@@ -170,12 +170,14 @@ void graphviz_ast_visitor::visit(astFPARAM *node){
 void graphviz_ast_visitor::visit(astFUNC_DECL *node){
     outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->type->getLabel() << "\"" << std::endl;
     outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->identifier->getLabel() << "\"" << std::endl;
-    outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->fparams->getLabel() << "\"" << std::endl;
+    if(node->fparams != nullptr){
+        outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->fparams->getLabel() << "\"" << std::endl;
+    }
     outfile << "\"" << node->getLabel() << "\"" << "->" << "\"" << node->function_block->getLabel() << "\"" << std::endl;
     
     node->type->accept(this);
     node->identifier->accept(this);
-    node->fparams->accept(this);
+    if(node->fparams != nullptr){ node->fparams->accept(this);}
     node->function_block->accept(this);
 }
 

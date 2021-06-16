@@ -19,6 +19,7 @@ public:
     };
 
     astPROGRAM* root;
+    int err_count = 0;
 
     explicit parser(lexer* lexer_ptr);
 
@@ -27,7 +28,6 @@ private:
     typedef void (parser::*parse_error)(grammarDFA::Symbol, grammarDFA::Symbol, unsigned int);
 
     stack<State> state_stack;
-    int err_count = 0;
 
     void rulePROGRAM(astInnerNode*,  lexer::Token*);
     void ruleBLOCK(astInnerNode*,  lexer::Token*);

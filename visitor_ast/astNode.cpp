@@ -6,6 +6,11 @@
 
 int astNode::n_nodes = 0;
 
+/* Convenience function for adding child nodes. Since we maintain positionality (see the discussion in the 'Concrete
+ * Implementations' section of astNode.h as well as the section on the AST in the report), some child arrays have a pre-
+ * declared size and we must ensure that we first populate those containers in the vector first. This function ensures
+ * that.
+ */
 void astInnerNode::add_child(astNode* child){
     if(n_children < children->size()){
         children->at(n_children) = child;
@@ -17,10 +22,15 @@ void astInnerNode::add_child(astNode* child){
     n_children++;
 }
 
+// Convenience function with returns a unique label for a node, based on its attributed (textual) symbol and unique id.
 string astInnerNode::getLabel(){
     return to_string(node_id) + "_" + symbol;
 }
 
+/* Convenience function with returns a unique label for a node, based on its attributed (textual) symbol, unique id, and
+ * associated lexeme. In the case of the lexeme being a string literal, we ensure that the double quotes are escaped for
+ * printing.
+ */
 string astLeafNode::getLabel(){
     string lexeme_copy = lexeme;
 
@@ -37,13 +47,21 @@ string astLeafNode::getLabel(){
     return to_string(node_id) + "_" + symbol + "(" + lexeme_copy + ")";
 }
 
+// Convenience function with returns a unique label for a node, based on its attributed opcode symbol and unique id.
 string astBinaryOp::getLabel(){
     return to_string(node_id) + "_" + op;
 }
 
+// Convenience function with returns a unique label for a node, based on its attributed opcode symbol and unique id.
 string astUNARY::getLabel(){
     return to_string(node_id) + "_" + op;
 }
+
+/* The following are the respective accept definitions for each concrete astNode implementation. Each call to accept:
+ * (i) Binds any references (defined for convenience) of child nodes to the respective positional entry in the vector
+ * (ii) Calls the visitors visit() function with the instance of the astNode concrete class, resulting in the execution
+ *      of the correct overloaded handler.
+ */
 
 void astTYPE::accept(visitor* v){
     v->visit(this);

@@ -14,6 +14,24 @@ using namespace std;
 
 class visitor;
 
+/* Defines an instance of an abstract syntax tree node (constructed by the parser), outlining the minimum amount of meta
+ * -data required to be maintained. Derivatives of this class may add further meta-data requirements. Indeed, we have a
+ * concrete implementation for each (more or less) of the definitions in the EBNF.
+ *
+ * Typical to tree structures, we maintain a reference to the parent astNode instance (unless the node is the root, which
+ * is always in fact an astPROGRAM node). We do not however maintain a reference to the child nodes. Instead, we further
+ * define abstract internal and leaf node classes.
+ *
+ * We maintain a number of information which, per-se, is not necessary and for purposes outside this assignment, we can
+ * do without. This includes textual information, a unique node_id, etc, which allows the ability to generate a detailed
+ * and meaningful pictorial representation of the abstract syntax tree.
+ *
+ * We also maintain useful meta-data as well however, such as the line number of the token (or first token in the sequence
+ * of tokens) associated with the astNode.
+ *
+ * Each concrete implementation must implement the accpet(visitor* v) function, to support the visitor design pattern
+ * which we heavily use to traverse the abstract syntax tree and carry out specific operations based on the node instance.
+ */
 class astNode{
 public:
     astNode* parent;
@@ -35,6 +53,9 @@ public:
     }
 };
 
+/* Adds the support of maintaining references to child astNode instances, by maintaining a vector of pointers to astNode
+ * instances. A convenience function for adding child nodes is defined.
+ */
 class astInnerNode: public astNode{
 public:
     vector<astNode*>* children = new vector<astNode*>(0);
@@ -47,6 +68,10 @@ public:
     astInnerNode(astInnerNode* parent, string symbol, unsigned int line) : astNode(parent, symbol, line){};
 };
 
+/* The abstract syntax tree we construct is in such a manner such that the leaf nodes represent some terminal symbol,
+ * such as an identifier or literal. Hence we must maintain the associated lexeme, for use in eg. constructing the
+ * symbol table, assignment with literals during compilation, etc. The astLeadNode implementation adds this support.
+ */
 class astLeafNode: public astNode{
 public:
     string lexeme;
@@ -60,6 +85,9 @@ public:
     };
 };
 
+/* For conveience, we also define an abstract astNode derivative for binary operands, which in particular maintains the
+ * opcode and reference to the two astNode instances representing the operands.
+ */
 class astBinaryOp: public astInnerNode{
 public:
     string op;
@@ -77,6 +105,21 @@ public:
             operand2 = children->at(1);
     }
 };
+
+/* --------------------------------------------- CONCRETE IMPLEMENTATIONS ---------------------------------------------
+ * What follows are the concrete implementations for the astNode instances associated with the EBNF definitions. Some
+ * concrete implementations have positional children, which is to say we expect certain node instances at certain indices
+ * in the vector of child nodes.
+ *
+ * For example, consider astFOR, which represents a for--statement. Syntactically, we can expect a declaration statement,
+ * followed by an expression, then an assignment, and then a block of statements. In this case, these would respectively
+ * occupy indices 0 up to 3 in the child node vector. However, the declaration and assignment statements are optional;
+ * in the case that these are omitted, a nullptr reference is maintained instead at that positional index. In this manner,
+ * we preserve positionality. To this extent, certain concrete node implementations bind certain elements in the child
+ * node vector to a named variable, for convenience. For example, in the case of astFOR, we have astNode* for_block =
+ * children->at(3).
+ * --------------------------------------------------------------------------------------------------------------------
+ */
 
 class astTYPE: public astLeafNode{
 public:
