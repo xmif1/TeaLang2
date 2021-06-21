@@ -7,6 +7,11 @@
 #include "semantic_analysis/graphviz_example/graphviz_ast_visitor.h"
 #include "interpreter/interpreter.h"
 
+/* Main class running the entire compilation pipeline. Execute as:
+ * ./main <source> [-v=1]
+ * where <source> is an absolute file path to a .txt file with TeaLang source and -v=1 is an optional flag which if set,
+ * a .dot file is outputted with graphviz code representing the abstract syntax tree.
+ */
 int main(int argc, char *argv[]){
     bool graphviz_on = false;
 

@@ -32,8 +32,3 @@
  auto foo4(x:int){
     return foo4(x - 1);
  }
-
-  // This example however does not resolve the type of foo4: the semantic analysis halts at this point
- auto foo5(x:int){
-    return 1 * foo4(x - 1);
- }

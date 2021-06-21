@@ -15,14 +15,14 @@ tlstruct Vector{
     }
 }
 
-Vector HadamardProduct(v1:Vector, v2:Vector){
+auto HadamardProduct(v1:Vector, v2:Vector){
     let v3:Vector;
     v3.v = v1.v * v2.v;
 
     return v3;
 }
 
-Vector Add(v1:Vector, v2:Vector){
+auto Add(v1:Vector, v2:Vector){
     let v3:Vector;
     v3.v = v1.v + v2.v;
 
@@ -55,7 +55,7 @@ print v4.v[2]; // 7.0
 tlstruct Matrix{
     let m[3]:Vector;
 
-    Vector[] retCols(){
+    auto[] retCols(){
         return m;
     }
 
@@ -92,7 +92,7 @@ tlstruct Matrix{
     }
 }
 
-Matrix HadamardProduct(m1:Matrix, m2:Matrix){
+auto HadamardProduct(m1:Matrix, m2:Matrix){
     let m3:Matrix;
 
     for(let i:int = 0; i < 3; i = i+1){
@@ -121,14 +121,5 @@ Copy(m1_t, m1);
 m1_t.Transpose();
 m1_t.PrintMatrix();
 
-let hp:Matrix = HadamardProduct(m1, m1_t);
+let hp:auto = HadamardProduct(m1, m1_t);
 hp.PrintMatrix();
-
-let y[3]:Vector;
-y = hp.retCols();
-let v:Vector = y[0];
-
-for(let i[5]:int = {0}; i[0] < 5; i[0] = i[1]){
-    i[1] = i[1] + 1;
-    print i[0];
-}
