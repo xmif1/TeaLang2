@@ -428,29 +428,35 @@ void semantic_analysis::visit(astASSIGNMENT_IDENTIFIER* node){
 }
 
 void semantic_analysis::visit(astASSIGNMENT_ELEMENT* node){
+    // if syntax analysis yielded correct AST with astELEMENT node
     if(node->element != nullptr){
         symbol_table* ref_lookup_symbolTable = lookup_symbolTable;
 
-        node->element->accept(this);
-        bool found_elt = !type_deduction_reqd;
-        type_t elt_type = curr_type;
+        node->element->accept(this); // visit astELEMENT node
+        bool found_elt = !type_deduction_reqd; // flag on whether element was found
+        type_t elt_type = curr_type; // maintain type of element
 
-        if(node->expression != nullptr){
-            node->expression->accept(this);
+        if(node->expression != nullptr){ // if syntax analysis yielded correct AST with astEXPRESSION node
+            node->expression->accept(this); // visit astEXPRESSION node
 
-            if(found_elt){
+            if(found_elt){ // if element was found
+                // fetch identifier of array for lookup and verbose error reporting
                 string arr_ident = ((astIDENTIFIER*) ((astELEMENT*) node->element)->identifier)->lexeme;
 
-                if(type_deduction_reqd){
+                if(type_deduction_reqd){ // if expression is of an indeterminate type, report syntax error
                     err_count++;
                     std::cerr << "ln " << node->line << ": array " << arr_ident << " of type " <<
                     type_symbol2string(elt_type.second, grammarDFA::ARRAY)
                     << " cannot have elements assigned to an indeterminate type" << std::endl;
                 }
+                // else if element is of an anonymous type i.e. array declared with an anonymous type which has not yet
+                // been deduced, and the expression yielded a singluar value (i.e. not an array)
                 else if(elt_type.first == grammarDFA::T_AUTO && curr_obj_class == grammarDFA::SINGLETON){
+                    // lookup symbol corresponding to array and set type to deduced type (i.e. that of the expression)
                     symbol* ret_symbol = ref_lookup_symbolTable->lookup(arr_ident);
                     ret_symbol->type = curr_type;
                 }
+                // otherwise if expression type is an array type or mismatched types, report an appropriate error
                 else if(curr_type != elt_type || curr_obj_class != grammarDFA::SINGLETON){
                     err_count++;
                     std::cerr << "ln " << node->line << ": array " << arr_ident << " of type " <<
@@ -463,23 +469,29 @@ void semantic_analysis::visit(astASSIGNMENT_ELEMENT* node){
     }
 }
 
-void semantic_analysis::visit(astASSIGNMENT_MEMBER* node) {
+void semantic_analysis::visit(astASSIGNMENT_MEMBER* node){
+    // if syntax analysis yielded correct AST with astIDENTIFIER node
     if(node->tls_name != nullptr){
+        // hold reference of tlstruct instance name
         string tls_ident = ((astIDENTIFIER*) node->tls_name)->lexeme;
-        symbol* ret_symbol = lookup_symbolTable->lookup(tls_ident);
+        symbol* ret_symbol = lookup_symbolTable->lookup(tls_ident); // and lookup if symbol exists with this identifier
         lookup_symbolTable = curr_symbolTable;
 
-        if(ret_symbol != nullptr){
+        if(ret_symbol != nullptr){ // if matching symbol instance found
+            // if the type of the returned symbol is not a single instance of a tlstruct named type, report an
+            // appropriate semantic error
             if((ret_symbol->type).first != grammarDFA::T_TLSTRUCT || ret_symbol->object_class != grammarDFA::SINGLETON){
                 err_count++;
                 std::cerr << "ln " << node->line << ": variable " << tls_ident << " is not a tlstruct type" << std::endl;
             }
+            // otherwise, if valid type, then check if syntax analysis yielded a correct AST with an astASSIGNMENT_IDENTIFIER
+            // or an astASSIGNMENT_ELEMENT node, corresponding to the assignment of the member identifier or element
             else if(node->assignment != nullptr){
                 lookup_symbolTable = get<symbol_table*>(get<literal_t>(ret_symbol->object));
-                node->assignment->accept(this);
+                node->assignment->accept(this); // visit the astASSIGNMENT_IDENTIFIER or astASSIGNMENT_ELEMENT node
             }
         }
-        else{
+        else{ // otherwise if symbol matching the identifier found, report an appropriate semantic error
             err_count++;
             std::cerr << "ln " << node->line << ": identifier " << tls_ident << " has not been declared" << std::endl;
         }
@@ -487,19 +499,27 @@ void semantic_analysis::visit(astASSIGNMENT_MEMBER* node) {
 }
 
 void semantic_analysis::visit(astVAR_DECL* node){
+    // maintain reference of the variable identifier and type
     string var_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
     type_t var_type = type_t(((astTYPE*) node->type)->type, ((astTYPE*) node->type)->lexeme);
 
+    // if assigning on declaration with an expression (recall that we changed variable assignment to being optional)
     if(node->expression != nullptr){
-        node->expression->accept(this);
+        node->expression->accept(this); // visit astEXPRESSION node
+        // if expression is of an indeterminate type, report appropriate semantic error
         if(type_deduction_reqd){
             err_count++;
             std::cerr << "ln " << node->line << ": variable " << var_ident << " of type " << var_type.second
             << " cannot be initialised to an indeterminate type" << std::endl;
         }
+        // else if variable is declared with an anonymous type, and the expression yielded a singluar value
+        // (i.e. not an array) with a known type
         else if(var_type.first == grammarDFA::T_AUTO && curr_obj_class == grammarDFA::SINGLETON){
+            // then set the var type to the type of the expression
             var_type = curr_type;
         }
+        // else if the variable and expression types do not match or the the expression yielded an array or (somehow)
+        // a function, then report a type mismatch semantic error
         else if(curr_type != var_type || curr_obj_class == grammarDFA::ARRAY || curr_obj_class == grammarDFA::FUNCTION){
             err_count++;
             std::cerr << "ln " << node->line << ": variable " << var_ident << " of type " << var_type.second
@@ -507,24 +527,27 @@ void semantic_analysis::visit(astVAR_DECL* node){
         }
     }
 
-    bool insert = true;
+    bool insert = true; // flag to maintain whether varSymbol has been successfully inserted in the symbol table
     varSymbol* var;
-    var = new varSymbol(&var_ident, var_type);
+    var = new varSymbol(&var_ident, var_type); // create new varSymbol instance for the variable being declared
 
+    // if variable is an instance of some tlstruct named type
     if(var_type.first == grammarDFA::T_TLSTRUCT){
+        // lookup tlsSymbol corresponding to the definition of the named type
         symbol* ret_symbol = lookup_symbolTable->lookup(var_type.second);
-        lookup_symbolTable = curr_symbolTable;
+        lookup_symbolTable = curr_symbolTable; // set symbol table references for lookup members
 
-        if(ret_symbol != nullptr){
+        if(ret_symbol != nullptr){ // if found, set right value to symbol table of tlstruct, for type checking purposes
             var->set_object(ret_symbol->object);
-        }else{
-            insert = false;
+        }else{ // if tlsSymbol not found with named type definition, report that the tlstruct type has not been declared
+            insert = false; // set flag to false
             err_count++;
             std::cerr << "ln " << node->line << ": tlstruct " << var_type.second << " has not been declared" << std::endl;
         }
     }
 
-    if(insert && !curr_symbolTable->insert(var)){
+    if(insert && !curr_symbolTable->insert(var)){ // attempt to insert in the symbol table;
+        // if symbol with the same identifier exists, report an appropriate semantic error
         delete var;
         err_count++;
         std::cerr << "ln " << node->line << ": identifier " << var_ident << " has already been declared" << std::endl;
@@ -532,26 +555,33 @@ void semantic_analysis::visit(astVAR_DECL* node){
 }
 
 void semantic_analysis::visit(astARR_DECL* node){
+    // maintain reference of array identifier and type
     string arr_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
     type_t arr_type = type_t(((astTYPE*) node->type)->type, ((astTYPE*) node->type)->lexeme);
 
+    // if array is an instance of some tlstruct named type
     if(arr_type.first == grammarDFA::T_TLSTRUCT){
+        // lookup tlsSymbol corresponding to the definition of the named type
         symbol* ret_symbol = lookup_symbolTable->lookup(arr_type.second);
-        lookup_symbolTable = curr_symbolTable;
+        lookup_symbolTable = curr_symbolTable; // set symbol table references for lookup members
 
-        if(ret_symbol == nullptr){
+        if(ret_symbol == nullptr){ // if tlsSymbol not found with named type definition, report that the tlstruct type has not been declared
             err_count++;
             std::cerr << "ln " << node->line << ": tlstruct " << arr_type.second << " has not been declared" << std::endl;
         }
     }
 
+    // if syntax analysis yielded a correct AST with an astEXPRESSION node
     if(node->size != nullptr){
-        node->size->accept(this);
+        node->size->accept(this); // visit the astEXPRESSION node
 
+        // if expression is of an indeterminate type, report an appropriate semantic error
         if(type_deduction_reqd){
             err_count++;
             std::cerr << "ln " << node->line << ": array size is of an indeterminate type" << std::endl;
         }
+        // else if expression does not yield a singular integer, report an appropriate semantic error
+        // recall that array indices must be integers; bound checking is carried during runtime
         else if(curr_type.first != grammarDFA::T_INT || curr_obj_class != grammarDFA::SINGLETON){
             err_count++;
             std::cerr << "ln " << node->line << ": array size must be an integer (is of type " <<
@@ -559,19 +589,30 @@ void semantic_analysis::visit(astARR_DECL* node){
         }
     }
 
+    // for each element listed for assignment (possibly none if we don't assign the array)
     for(int i = 3; i < node->n_children; i++){
+        // if syntax analysis yielded a correct astEXPRESSION node corresponding to the element
         if(node->children->at(i) != nullptr){
-            (node->children->at(i))->accept(this);
+            (node->children->at(i))->accept(this); // visit astEXPRESSION node
 
+            // if expression is of an indeterminate type, report an appropriate semantic error
             if(type_deduction_reqd){
                 err_count++;
                 std::cerr << "ln " << node->line << ": array " << arr_ident << " of type " <<
                 type_symbol2string(arr_type.second, grammarDFA::ARRAY)
                 << " cannot be initialised to an indeterminate type at index " << i - 3 << std::endl;
             }
+            // else if array is declared with an anonymous type which has not yet been deduced, and the expression yielded
+            // a singluar value (i.e. not an array)
             else if(arr_type.first == grammarDFA::T_AUTO && curr_obj_class == grammarDFA::SINGLETON){
+                // then set the array type to the resulting type of the expression representing an element of the array
+                // observe how the first occurrence of this case then enforces all subsequence elements in the array to
+                // be of the same type i.e. we have consistent types
                 arr_type = curr_type;
             }
+            // else if the array and expression types do not match or the the expression yielded an array or (somehow)
+            // a function, then report a type mismatch semantic error (remember that we do not support multi-dimensional
+            // arrays, and hence elements can only be singular values)
             else if(curr_type != arr_type || curr_obj_class != grammarDFA::SINGLETON){
                 err_count++;
                 std::cerr << "ln " << node->line << ": array " << arr_ident << " of type " <<
@@ -582,9 +623,10 @@ void semantic_analysis::visit(astARR_DECL* node){
         }
     }
 
-    auto* arr = new arrSymbol(&arr_ident, arr_type, 0);
+    auto* arr = new arrSymbol(&arr_ident, arr_type, 0); // create new arrSymbol instance for the array being declared
 
-    if(!curr_symbolTable->insert(arr)){
+    if(!curr_symbolTable->insert(arr)){ // attempt to insert into the symbol table
+        // if false returned by insert, then identifier is already in use; report appropriate semantic error
         delete arr;
         err_count++;
         std::cerr << "ln " << node->line << ": identifier " << arr_ident << " has already been declared" << std::endl;
