@@ -823,6 +823,16 @@ void semantic_analysis::visit(astFUNC_DECL* node){
     type_t ret_type = type_t(((astTYPE*) node->type)->type, ((astTYPE*) node->type)->lexeme);
     grammarDFA::Symbol ret_obj_class = ((astTYPE*) node->type)->object_class;
 
+    if(ret_type.first == grammarDFA::T_TLSTRUCT){
+        symbol* ret_symbol = lookup_symbolTable->lookup(ret_type.second);
+        lookup_symbolTable = curr_symbolTable;
+
+        if(ret_symbol == nullptr){
+            err_count++;
+            std::cerr << "ln " << node->line << ": tlstruct " << ret_type.second << " has not been declared" << std::endl;
+        }
+    }
+
     auto* fparams = new vector<symbol*>(0);
     if(node->fparams != nullptr){
         for(auto &c : *((astFPARAMS*) node->fparams)->children){
