@@ -808,18 +808,24 @@ void semantic_analysis::visit(astIF* node){
 }
 
 void semantic_analysis::visit(astFOR* node){
-    curr_symbolTable->push_scope();
+    // maintain scoping: push scope for for-block
+    curr_symbolTable->push_scope(); // we push new scope since the optional declaration should be accessible in the scope of the for-block
 
+    // if optional declaration statement given, visit
     if(node->decl != nullptr){ node->decl->accept(this);}
 
+    // if syntax analysis yielded correst AST with astEXPRESSION node
     if(node->expression != nullptr){
-        node->expression->accept(this);
+        node->expression->accept(this); // visit the astEXPRESSION node
 
+        // if expression is of an indeterminate type, report appropriate semantic error
         if(type_deduction_reqd){
             err_count++;
             std::cerr << "ln " << node->line << ": for-loop conditional is of an indeterminate type (possibly not boolean)"
             << std::endl;
         }
+        // else if expression is not a singular bool value, report semantic error since the if-condition must be a
+        // single boolean flag
         else if(curr_type.first != grammarDFA::T_BOOL || curr_obj_class != grammarDFA::SINGLETON){
             err_count++;
             std::cerr << "ln " << node->line << ": for-loop conditional is not of boolean type (but is of type " <<
@@ -827,24 +833,31 @@ void semantic_analysis::visit(astFOR* node){
         }
     }
 
+    // if optional assignment statement given, visit
     if(node->assignment != nullptr){ node->assignment->accept(this);}
 
+    // then visit each child node of the astBLOCK associated with the for-block
     for(auto &c : *((astBLOCK*) node->for_block)->children){
         c->accept(this);
     }
 
+    // maintain scoping: pop scope for for-block
     curr_symbolTable->pop_scope();
 }
 
 void semantic_analysis::visit(astWHILE* node){
+    // if syntax analysis yielded a correct AST with an astEXPRESSION block
     if(node->expression != nullptr){
-        node->expression->accept(this);
+        node->expression->accept(this); // visit astEXPRESSION block
 
+        // if expression is of an indeterminate type, report appropriate semantic error
         if(type_deduction_reqd){
             err_count++;
             std::cerr << "ln " << node->line << ": while-loop conditional is of an indeterminate type (possibly not boolean)"
             << std::endl;
         }
+        // else if expression is not a singular bool value, report semantic error since the if-condition must be a
+        // single boolean flag
         else if(curr_type.first != grammarDFA::T_BOOL || curr_obj_class != grammarDFA::SINGLETON){
             err_count++;
             std::cerr << "ln " << node->line << ": while-loop conditional is not of boolean type (but is of type " <<
@@ -852,47 +865,56 @@ void semantic_analysis::visit(astWHILE* node){
         }
     }
 
+    // if syntax analysis yielded a correst AST with an astBLOCK node for the while-block, visit
     if(node->while_block != nullptr){ node->while_block->accept(this);}
 }
 
 void semantic_analysis::visit(astFPARAMS* node){
+    // visit each child node and carry out semantic analysis
     for(auto &c : *node->children){
         c->accept(this);
     }
 }
 
 void semantic_analysis::visit(astFPARAM* node){
+    // maintain reference of parameter identifier, type, and object class
     string fparam_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
     type_t fparam_type = type_t(((astTYPE*) node->type)->type, ((astTYPE*) node->type)->lexeme);
     grammarDFA::Symbol fparam_obj_class = ((astTYPE*) node->type)->object_class;
 
-    symbol* fparam;
-    if(fparam_obj_class == grammarDFA::SINGLETON){
+    symbol* fparam; // declare new symbol instance; can eventually be a varSymbol or arrSymbol instance
+    // the symbol instance will be inserted in the symbol table for semantic analysis in the function block
+
+    if(fparam_obj_class == grammarDFA::SINGLETON){ // if object class is singleton i.e. singular value, then new varSymbol
         fparam = new varSymbol(&fparam_ident, fparam_type);
 
+        // in the case the type is a tlstruct named type
         if(fparam_type.first == grammarDFA::T_TLSTRUCT){
+            // lookup tlsSymbol corresponding to the definition of the named type
             symbol* ret_symbol = lookup_symbolTable->lookup(fparam_type.second);
-            lookup_symbolTable = curr_symbolTable;
+            lookup_symbolTable = curr_symbolTable; // set symbol table references for lookup members
 
-            if(ret_symbol != nullptr){
+            if(ret_symbol != nullptr){ // if found, set right value of symbol to symbol table associated with tlstruct defn
                 fparam->set_object(ret_symbol->object);
-            }else{
+            }else{ // if tlsSymbol not found with named type definition, report that the tlstruct type has not been declared
                 err_count++;
                 std::cerr << "ln " << node->line << ": tlstruct " << fparam_type.second << " has not been declared" << std::endl;
             }
         }
     }
-    else{
+    else{ // otherwise decl. a new arrSymbol
         fparam = new arrSymbol(&fparam_ident, fparam_type, 0);
     }
 
+    // if parameter is of an anonymous type, report error since params cannot be of an anonymous type
     if(fparam_type.first == grammarDFA::T_AUTO){
         err_count++;
         std::cerr << "ln " << node->line << ": identifier " << fparam_ident
         << " in function signature cannot have auto type specification" << std::endl;
     }
 
-    if(!curr_symbolTable->insert(fparam)){
+    if(!curr_symbolTable->insert(fparam)){ // attempt to insert into the symbol table
+        // if false returned by insert, then identifier is already in use; report appropriate semantic error
         delete fparam;
 
         err_count++;
@@ -902,54 +924,66 @@ void semantic_analysis::visit(astFPARAM* node){
 }
 
 void semantic_analysis::visit(astFUNC_DECL* node){
+    // maintain reference of function identifier and return type/object class
     string func_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
     type_t ret_type = type_t(((astTYPE*) node->type)->type, ((astTYPE*) node->type)->lexeme);
     grammarDFA::Symbol ret_obj_class = ((astTYPE*) node->type)->object_class;
 
+    // in the case the return type is a tlstruct named type
     if(ret_type.first == grammarDFA::T_TLSTRUCT){
+        // lookup tlsSymbol corresponding to the definition of the named type
         symbol* ret_symbol = lookup_symbolTable->lookup(ret_type.second);
-        lookup_symbolTable = curr_symbolTable;
+        lookup_symbolTable = curr_symbolTable; // set symbol table references for lookup members
 
-        if(ret_symbol == nullptr){
+        if(ret_symbol == nullptr){ // if tlsSymbol not found with named type definition, report that the tlstruct type has not been declared
             err_count++;
             std::cerr << "ln " << node->line << ": tlstruct " << ret_type.second << " has not been declared" << std::endl;
         }
     }
 
-    auto* fparams = new vector<symbol*>(0);
-    if(node->fparams != nullptr){
+    auto* fparams = new vector<symbol*>(0); // will hold the type signature of the function in the form of dummy symbol instances
+    if(node->fparams != nullptr){ // if syntax analysis yielded correct AST with astFPARAMS node
+        // for each astFPARAM child node
         for(auto &c : *((astFPARAMS*) node->fparams)->children){
+            // maintain reference of the parameters identifier, type, and object class
             string obj_ident = ((astIDENTIFIER*) ((astFPARAM*) c)->children->at(0))->lexeme;
             type_t obj_type = type_t(((astTYPE*) ((astFPARAM*) c)->children->at(1))->type,
                                      ((astTYPE*) ((astFPARAM*) c)->children->at(1))->lexeme);
             grammarDFA::Symbol obj_class = ((astTYPE*) ((astFPARAM*) c)->children->at(1))->object_class;
 
+            // if parameter is a singular value
             if(obj_class == grammarDFA::SINGLETON){
-                auto* var = new varSymbol(&obj_ident, obj_type);
+                auto* var = new varSymbol(&obj_ident, obj_type); // create new varSymbol instance
 
+                // in the case the parameter type is a tlstruct named type
                 if(obj_type.first == grammarDFA::T_TLSTRUCT){
+                    // lookup tlsSymbol corresponding to the definition of the named type
                     symbol* ret_symbol = lookup_symbolTable->lookup(obj_type.second);
-                    lookup_symbolTable = curr_symbolTable;
+                    lookup_symbolTable = curr_symbolTable; // set symbol table references for lookup members
 
-                    if(ret_symbol != nullptr){
+                    if(ret_symbol != nullptr){ // if found, set right value of symbol to symbol table associated with tlstruct defn
                         var->set_object(ret_symbol->object);
-                    }else{
+                    }else{ // if tlsSymbol not found with named type definition, report that the tlstruct type has not been declared
                         err_count++;
                         std::cerr << "ln " << node->line << ": tlstruct " << obj_type.second << " has not been declared" << std::endl;
                     }
                 }
 
+                // insert dummy varSymbol instance with the ident and type of the parameter, building the type signature
                 fparams->push_back(var);
             }
-            else{
+            else{ // else if parameter is an array type
+                // insert dummy arrSymbol instance with the ident and type of the parameter, building the type signature
                 fparams->push_back(new arrSymbol(&obj_ident, obj_type, 0));
             }
         }
     }
 
+    // create new funcSymbol instance for the function declaration
     auto* func = new funcSymbol(&func_ident, ret_type, ret_obj_class, fparams);
 
-    bool inserted = curr_symbolTable->insert(func);
+    bool inserted = curr_symbolTable->insert(func);// attempt to insert into the symbol table
+    // if false returned by insert, then identifier is already in use; report appropriate semantic error
     if(!inserted){
         err_count++;
         std::cerr << "ln " << node->line << ": identifier " << func_ident <<
@@ -957,15 +991,25 @@ void semantic_analysis::visit(astFUNC_DECL* node){
         << typeVect_symbol2string(fparams) << ")" << std::endl;
     }
 
+    // push onto the function stack, in order to carry out return statement checking
+    // initially return flag is set to false
     functionStack->push(make_pair(func, false));
 
+    // maintain scoping: push scope for function block
     curr_symbolTable->push_scope();
+    // if syntax analysis yielded correct AST with an astFPARAMS node, visit;
+    // note that parameters declared will be in the function scope, as required for semantic analysis
     if(node->fparams != nullptr){ node->fparams->accept(this);}
+
+    // visit each child node of the astBLOCK associated with the function block
     for(auto &c : *((astBLOCK*) node->function_block)->children){
         c->accept(this);
     }
+    // maintain scoping: pop scope for function block
     curr_symbolTable->pop_scope();
 
+    // if return flag on top of the function stack is false, then the function does not always return;
+    // report an appropriate semantic error in this case
     if(!functionStack->top().second){
         err_count++;
         std::cerr << "ln " << node->line << ": function " << func_ident << "(" << typeVect_symbol2string(fparams)
@@ -974,6 +1018,8 @@ void semantic_analysis::visit(astFUNC_DECL* node){
 
     functionStack->pop();
 
+    // further more if the function was defined with an anonymous return type and this was not type deduced from the return
+    // statements, report an appropriate semantic error
     if(func->type.first == grammarDFA::T_AUTO){
         err_count++;
         std::cerr << "ln " << node->line << ": function " << func_ident << "(" << typeVect_symbol2string(fparams)
@@ -989,16 +1035,21 @@ void semantic_analysis::visit(astFUNC_DECL* node){
 }
 
 void semantic_analysis::visit(astMEMBER_ACCESS* node){
+    // if syntax analysis yielded correct AST with astIDENTIFIER node
     if(node->tls_name != nullptr){
+        // hold reference of tlstruct instance name
         string tls_ident = ((astIDENTIFIER*) node->tls_name)->lexeme;
-        symbol* ret_symbol = lookup_symbolTable->lookup(tls_ident);
+        symbol* ret_symbol = lookup_symbolTable->lookup(tls_ident); // and lookup if symbol exists with this identifier
         lookup_symbolTable = curr_symbolTable;
 
-        if(ret_symbol != nullptr){
+        if(ret_symbol != nullptr){// if matching symbol instance found
+            // if the type of the returned symbol is not a single instance of a tlstruct named type, report an
+            // appropriate semantic error
             if((ret_symbol->type).first != grammarDFA::T_TLSTRUCT || ret_symbol->object_class != grammarDFA::SINGLETON){
                 err_count++;
                 std::cerr << "ln " << node->line << ": variable " << tls_ident << " is not a tlstruct type" << std::endl;
             }
+            // otherwise, if valid type, then check if member specified by identifier is in the symbol table of the tlstruct instance
             else if(node->member != nullptr){
                 lookup_symbolTable = get<symbol_table*>(get<literal_t>(ret_symbol->object));
                 node->member->accept(this);
