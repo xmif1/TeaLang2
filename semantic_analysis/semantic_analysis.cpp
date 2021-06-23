@@ -634,23 +634,31 @@ void semantic_analysis::visit(astARR_DECL* node){
 }
 
 void semantic_analysis::visit(astTLS_DECL* node){
-    string tls_ident = ((astIDENTIFIER*) node->identifier)->lexeme;
-    auto* tls = new tlsSymbol(&tls_ident, &tls_ident);
+    string tls_ident = ((astIDENTIFIER*) node->identifier)->lexeme; // maintain reference of tls named type identifier
+    auto* tls = new tlsSymbol(&tls_ident, &tls_ident); // initialise new tlsSymbol instance to be inserted
 
+    // keep references of current and lookup symbol tables at present
     auto* ref_curr_symbolTable = curr_symbolTable;
     auto* ref_lookup_symbolTable = lookup_symbolTable;
+
+    // create new symbol table for tlstruct and set the current and lookup symbol tables to this new symbol table
     curr_symbolTable = new symbol_table(ref_curr_symbolTable);
     lookup_symbolTable = curr_symbolTable;
 
+    // visit all the children in the astBLOCK node which defines the tlstructs internals
+    // in doing so, this populates the symbol table
     for(auto &c : *((astBLOCK*) node->tls_block)->children){
         c->accept(this);
     }
 
+    // set the right value of the tlsSymbol as the resulting symbol table
+    // this defines which members can and cannot be accessed
     tls->set_object(curr_symbolTable);
     curr_symbolTable = ref_curr_symbolTable;
     lookup_symbolTable = ref_lookup_symbolTable;
 
-    if(!curr_symbolTable->insert(tls)){
+    if(!curr_symbolTable->insert(tls)){ // attempt to insert into the symbol table
+        // if false returned by insert, then identifier is already in use; report appropriate semantic error
         delete tls;
         err_count++;
         std::cerr << "ln " << node->line << ": tlstruct " << tls_ident << " has already been declared" << std::endl;
@@ -658,13 +666,17 @@ void semantic_analysis::visit(astTLS_DECL* node){
 }
 
 void semantic_analysis::visit(astPRINT* node){
+    // if syntax analysis yielded a correct AST with an astEXPRESSION node
     if(node->expression != nullptr){
-        node->expression->accept(this);
+        node->expression->accept(this); // visit the astEXPRESSION node
 
+        // if expression is of an indeterminate type, report an appropriate semantic error
         if(type_deduction_reqd){
             err_count++;
             std::cerr << "ln " << node->line << ": print operation is unsupported on indeterminate types" << std::endl;
         }
+        // else if a tlstruct, return an appropriate error since there is explicit definition for a textual representation
+        // of a tlstruct type; the programmer must define one
         else if(curr_type.first == grammarDFA::T_TLSTRUCT){
             err_count++;
             std::cerr << "ln " << node->line << ": print operation is unsupported on tlstruct type " <<
@@ -674,15 +686,20 @@ void semantic_analysis::visit(astPRINT* node){
 }
 
 void semantic_analysis::visit(astRETURN* node){
+    // if the functionStack is empty, then at present there are no functions being semantically checked
+    // i.e. we have a return statement outside of a function
     if(functionStack->empty()){
         err_count++;
         std::cerr << "ln " << node->line << ": return statement cannot be outside of a function scope"<< std::endl;
     }
+    // else if syntax analysis yielded a correct AST with an astEXPRESSION node
     else if(node->expression != nullptr){
-        node->expression->accept(this);
-        functionStack->top().second = true;
+        node->expression->accept(this); // visit astEXPRESSION node
+        functionStack->top().second = true; // the top most function of the functionStack returns, hence set return flag to true
 
+        // if expression is of an indeterminate type and the return type is not anonymous, report appropriate semantic error
         if(type_deduction_reqd && curr_type.first != grammarDFA::T_AUTO){
+            // if-else statement only in use to print expected type if not anonymous
             if((functionStack->top().first)->type.first == grammarDFA::T_AUTO){
                 err_count++;
                 std::cerr << "ln " << node->line << ": function " << (functionStack->top().first)->identifier << "(" <<
@@ -697,17 +714,22 @@ void semantic_analysis::visit(astRETURN* node){
                 << " return type)" << std::endl;
             }
         }
+        // else if function return type is anonymous
         else if(curr_type.first != grammarDFA::T_AUTO && (functionStack->top().first)->type.first == grammarDFA::T_AUTO){
+            // if function return is in particular an anonymous array type and the expression is not an array type,
+            // report an appropriate semantic error
             if((functionStack->top().first)->ret_obj_class == grammarDFA::ARRAY && curr_obj_class != grammarDFA::ARRAY){
                 err_count++;
                 std::cerr << "ln " << node->line << ": function " << (functionStack->top().first)->identifier << "(" <<
                 typeVect_symbol2string((functionStack->top().first)->fparams) << ") returns a value of type "
                 << type_symbol2string(curr_type.second, curr_obj_class) << " (expected array return type)" << std::endl;
-            }else{
+            }else{ // otherwise, set type and object class of the function since we can type deduce them from the expression
                 (functionStack->top().first)->type = curr_type;
                 (functionStack->top().first)->ret_obj_class = curr_obj_class;
             }
         }
+        // else if return type (i.e. resulting type of the expression) or object class do not match the function return
+        // type or object class, report an appropriate semantic error
         else if(!type_deduction_reqd && (curr_type != (functionStack->top().first)->type ||
                 curr_obj_class != (functionStack->top().first)->ret_obj_class)){
             err_count++;
@@ -721,14 +743,18 @@ void semantic_analysis::visit(astRETURN* node){
 }
 
 void semantic_analysis::visit(astIF* node){
+    // if syntax analysis yielded a correct AST with an astEXPRESSION node
     if(node->expression != nullptr){
-        node->expression->accept(this);
+        node->expression->accept(this); // visit astEXPRESSION node
 
+        // if expression is of an indeterminate type, report appropriate semantic error
         if(type_deduction_reqd){
             err_count++;
             std::cerr << "ln " << node->line << ": if-else conditional is of an indeterminate type (possibly not boolean)"
             << std::endl;
         }
+        // else if expression is not a singular bool value, report semantic error since the if-condition must be a
+        // single boolean flag
         else if(curr_type.first != grammarDFA::T_BOOL || curr_obj_class != grammarDFA::SINGLETON){
             err_count++;
             std::cerr << "ln " << node->line << ": if-else conditional is not of boolean type (but is of type " <<
@@ -736,31 +762,46 @@ void semantic_analysis::visit(astIF* node){
         }
     }
 
-    bool curr_func_ret, if_ret, else_ret;
+    bool curr_func_ret, if_ret, else_ret; // flags to maintain whether return statements have been encountered
+    // if functionStack is not empty, set the curr_func_ret flag to the return flag of the top-most function on the stack
     if(!functionStack->empty()){ curr_func_ret = functionStack->top().second;}
 
+    // if syntax analysis yielded a correct AST with an astBLOCK node
     if(node->if_block != nullptr){
+        // if functionStack is not empty, set the return flag of the top-most function on the stack to false
+        // this is so that we check if we return within the if-block
         if(!functionStack->empty()){ functionStack->top().second = false;}
 
-        node->if_block->accept(this);
+        node->if_block->accept(this); // visit the astBLOCK node corresponding to the if-branch
 
+        // if functionStack is not empty, set the if_ret flag to the return flag of the top-most function on the stack
         if(!functionStack->empty()){ if_ret = functionStack->top().second;}
     }
     else{
+        // else if_ret is false since if-block is missing
         if_ret = false;
     }
 
+    // if the optional else branch is specified i.e. there is another astBLOCK node corresponding to the else branch
     if(node->else_block != nullptr){
+        // if functionStack is not empty, set the return flag of the top-most function on the stack to false
+        // this is so that we check if we return within the else-block
         if(!functionStack->empty()){ functionStack->top().second = false;}
 
-        node->else_block->accept(this);
+        node->else_block->accept(this); // visit the astBLOCK node corresponding to the else-branch
 
+        // if functionStack is not empty, set the else_ret flag to the return flag of the top-most function on the stack
         if(!functionStack->empty()){ else_ret = functionStack->top().second;}
     }
     else{
+        // else if else-branch missing, the return status is equal to that of the if-branch
         curr_func_ret = if_ret;
     }
 
+    // if functionStack is not empty, set the return flag of the top-most function accordingly; in particular:
+    // (i) if curr_func_ret was true, then if at least one of if_ret or else_ret does not return, the function still returns
+    // (ii) if curr_func_ret was false, then for the function to return BOTH if_ret and else_ret must be true i.e. we
+    //      check that the functional returns in all conditional branches
     if(!functionStack->empty()){
         functionStack->top().second = curr_func_ret || (if_ret && else_ret);
     }
@@ -971,16 +1012,20 @@ void semantic_analysis::visit(astMEMBER_ACCESS* node){
 }
 
 void semantic_analysis::visit(astBLOCK* node){
+    // maintain scoping: push new scope for symbols within block
     curr_symbolTable->push_scope();
 
+    // visit each child node and carry out semantic analysis
     for(auto &c : *node->children){
         c->accept(this);
     }
 
+    // maintain scoping: pop score and return to upper scope
     curr_symbolTable->pop_scope();
 }
 
 void semantic_analysis::visit(astPROGRAM* node){
+    // visit each child node and carry out semantic analysis
     for(auto &c : *node->children){
         c->accept(this);
     }
