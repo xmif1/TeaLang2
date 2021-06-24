@@ -41,7 +41,7 @@ public:
     void visit(astBLOCK* node) override;
     void visit(astPROGRAM* node) override;
 
-    explicit graphviz_ast_visitor();
+    explicit graphviz_ast_visitor(string filename);
 
 private:
     std::ofstream outfile;

@@ -371,14 +371,14 @@ void semantic_analysis::visit(astUNARY* node){
             if(node->op == "-" && (curr_type.first == grammarDFA::T_BOOL || curr_type.first == grammarDFA::T_STRING
                                    || curr_type.first == grammarDFA::T_TLSTRUCT || curr_type.first == grammarDFA::T_AUTO)){
                 err_count++;
-                std::cerr << "ln " << node->line << ": binary operation " << node->op <<
+                std::cerr << "ln " << node->line << ": unary operation " << node->op <<
                 " requires matching int, float or char types (given " << type_symbol2string(curr_type.second, curr_obj_class)
                 << " instead)" << std::endl;
             }
             // 'not' logical unary operator only supports bool types; if not, report semantic error
             else if(node->op == "not" && curr_type.first != grammarDFA::T_BOOL){
                 err_count++;
-                std::cerr << "ln " << node->line << ": binary operation " << node->op <<
+                std::cerr << "ln " << node->line << ": unary operation " << node->op <<
                 " requires a boolean operand (given " << type_symbol2string(curr_type.second, curr_obj_class) << " instead)"
                 << std::endl;
             }

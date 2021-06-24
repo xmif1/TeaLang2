@@ -4,8 +4,8 @@
 
 #include "graphviz_ast_visitor.h"
 
-graphviz_ast_visitor::graphviz_ast_visitor(){
-    outfile.open("//Users/xandrumifsud/Documents/Dev/TeaLang2/ast.dot");
+graphviz_ast_visitor::graphviz_ast_visitor(string filename){
+    outfile.open(filename + ".dot");
     outfile << "digraph ast {" << std::endl;
 }
 
