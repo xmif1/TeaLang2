@@ -16,7 +16,7 @@ The _TeaLang_ family of languages are an expression-based strongly-typed family 
 have ```C```-style comments, that is, ```//. . .``` for line comments and ```/*. . . */``` for block comments. The languages
 are case-sensitive and each function is expected to return a value. _Tea2Lang_ in particular has 5 primitive types: ‘float’,
 ‘int’, ‘bool’, ‘char’ and ‘string’. Binary operators, such as ‘+’, require that the operands have matching types;
-the languages do not perform any implicit/automatic typecasting.
+the languages do not perform any implicit/automatic typecasting. The languages also support function overloading.
 
 The following is a syntactically and semantically correct _Tea2Lang_ program:
 ```
