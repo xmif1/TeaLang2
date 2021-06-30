@@ -318,7 +318,7 @@ void semantic_analysis::visit(astFUNC_CALL* node){
         lookup_symbolTable = curr_symbolTable; // set lookup symbol table to current symbol table
 
         type_deduction_reqd = false;
-        if(node->aparams != nullptr){ // if syntax analysis yielded correct AST with astAPARMS node
+        if(node->aparams != nullptr){ // if we have at least 1 parameter...
             node->aparams->accept(this); // visit astAPARAMS node to type check the parameters and build the function type-signature
         }
 

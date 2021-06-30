@@ -1,4 +1,4 @@
- #_Tea2Lang_ : A Iteration of a Teaching Programming Language for Compiler Theory and Practice
+ #Tea2Lang : A Iteration of a Teaching Programming Language for Compiler Theory and Practice
 
 ---
 CPS2000 *Compiler Theory and Practice*
