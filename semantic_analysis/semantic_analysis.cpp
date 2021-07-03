@@ -942,7 +942,7 @@ void semantic_analysis::visit(astFUNC_DECL* node){
     }
 
     auto* fparams = new vector<symbol*>(0); // will hold the type signature of the function in the form of dummy symbol instances
-    if(node->fparams != nullptr){ // if syntax analysis yielded correct AST with astFPARAMS node
+    if(node->fparams != nullptr){ // if at least 1 astFPARAM node specified
         // for each astFPARAM child node
         for(auto &c : *((astFPARAMS*) node->fparams)->children){
             // maintain reference of the parameters identifier, type, and object class
