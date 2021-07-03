@@ -6,7 +6,7 @@
 
 graphviz_ast_visitor::graphviz_ast_visitor(string filename){
     outfile.open(filename + ".dot");
-    outfile << "digraph ast {" << std::endl;
+    outfile << "digraph ast { rankdir=LR;" << std::endl;
 }
 
 void graphviz_ast_visitor::visit(astTYPE *node){}
